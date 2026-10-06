@@ -1,9 +1,17 @@
-param([string]$OutputName)
+param(
+    [string]$OutputName,
+    [string]$SigningThumbprint,
+    [string]$SignToolPath = 'signtool.exe',
+    [uri]$TimestampUrl = 'https://timestamp.digicert.com',
+    [switch]$SigningLocalMachine
+)
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $artifacts = Join-Path $repoRoot 'artifacts'
 [xml]$properties = Get-Content -LiteralPath (Join-Path $repoRoot 'Directory.Build.props') -Raw
 $version = [string]$properties.Project.PropertyGroup.Version
+$changelog = Get-Content -LiteralPath (Join-Path $repoRoot 'CHANGELOG.md') -Raw
+if ($changelog -notmatch ('(?m)^## \[' + [regex]::Escape($version) + '\]')) { throw 'Add the current release to CHANGELOG.md before packaging.' }
 if (!$OutputName) { $OutputName = "SqlPilotSetup-$version.exe" }
 if ([IO.Path]::GetFileName($OutputName) -ne $OutputName) { throw 'OutputName must be a filename.' }
 $payload = Join-Path $artifacts 'installer-payload.zip'
@@ -23,6 +31,9 @@ Copy-Item -LiteralPath (Join-Path $references 'Facades') -Destination (Join-Path
 Compress-Archive -Path (Join-Path $stage '*') -DestinationPath $payload -Force
 & dotnet publish (Join-Path $repoRoot 'src/SqlPilot.Setup/SqlPilot.Setup.csproj') -c Release -r win-x64 --self-contained true '-p:PublishSingleFile=true' '-p:IncludeNativeLibrariesForSelfExtract=true' '-p:EnableCompressionInSingleFile=true' '-p:DebugType=None' -o (Join-Path $artifacts 'work/publish')
 if ($LASTEXITCODE -ne 0) { throw 'Setup publish failed.' }
+if ($SigningThumbprint) {
+    & (Join-Path $PSScriptRoot 'Sign-Installer.ps1') -Path (Join-Path $artifacts 'work/publish/SqlPilotSetup.exe') -Thumbprint $SigningThumbprint -SignToolPath $SignToolPath -TimestampUrl $TimestampUrl -LocalMachine:$SigningLocalMachine
+}
 $release = Join-Path $artifacts 'release'
 New-Item -ItemType Directory -Path $release -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $artifacts 'work/publish/SqlPilotSetup.exe') -Destination (Join-Path $release $OutputName) -Force

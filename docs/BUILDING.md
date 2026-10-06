@@ -1,6 +1,6 @@
 # Building and packaging
 
-Use Windows, PowerShell 7 (`pwsh`), .NET 8 SDK and a locally installed SSMS 20 or 22. `global.json` selects the latest installed .NET 8 feature band from 8.0.300 onward. Build scripts accept custom host locations. No host SDK binaries are committed.
+Use Windows, PowerShell (`pwsh`), the .NET SDK selected by `global.json`, and an installed SSMS host. Adapter build paths can be supplied to `Build.ps1`; run `Get-Help scripts/Build.ps1` for parameters.
 
 ## Steps
 
@@ -14,19 +14,20 @@ pwsh -File scripts/Build-Setup.ps1
 
 All generated products live under `artifacts/`, which is ignored by Git. `Directory.Build.props` is the version source. Product identity is shared by SSMS and setup through `src/Shared/ProductInfo.cs`; runtime version is read from assembly metadata. Manifest templates use `SQLPILOT_VERSION`, replaced during packaging.
 
-The installer embeds source, Core/ScriptDom assemblies and compiler reference assemblies. It compiles its SSMS adapter against the actual selected host editor APIs, then registers the resulting extension. The release exe is self-contained for Windows x64. Signature configuration is not provided: releases are currently unsigned.
+The installer embeds source, Core/ScriptDom assemblies and compiler reference assemblies. It compiles its SSMS adapter against the actual selected host editor APIs, then registers the resulting extension. The release exe is self-contained for Windows x64. To sign the final installer, pass `-SigningThumbprint` and optionally `-SignToolPath` to `Build-Setup.ps1`. See [signing and Store distribution](SIGNING.md).
 
 ## Installer self-test
 
 ```powershell
-$exe = (Resolve-Path artifacts/release/SqlPilotSetup-0.13.2.exe).Path
+[xml]$props = Get-Content Directory.Build.props
+$exe = (Resolve-Path ("artifacts/release/SqlPilotSetup-{0}.exe" -f $props.Project.PropertyGroup.Version)).Path
 $report = Join-Path (Get-Location) 'artifacts/setup-selftest.json'
 $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', '--report', ('"' + $report + '"')) -WindowStyle Hidden -PassThru -Wait
 if ($process.ExitCode -ne 0) { throw 'Installer self-test failed.' }
 Get-Content -LiteralPath $report
 ```
 
-Self-test detects installed hosts and compiles adapters but does not install over them. Close/save selected hosts before a real installation. Test load, Ctrl+Space, Tab/Enter, JOIN relations, database switching, formatting and sessions inside each supported SSMS host after restart.
+Self-test detects installed hosts and compiles adapters but does not install over them. For a real installation, save your queries and follow the installer's restart guidance. Test load, Ctrl+Space, Tab/Enter, JOIN relations, database switching, formatting and sessions inside each supported SSMS host after restart.
 
 ## Optional metadata test
 
