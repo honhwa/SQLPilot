@@ -1,0 +1,62 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{DC712937-B4C2-4005-8E81-B065C09C1851}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlPilot.Core", "src\SqlPilot.Core\SqlPilot.Core.csproj", "{B5BD987E-2830-4A02-B040-1C3EB3B8BA1F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlPilot.Ssms", "src\SqlPilot.Ssms\SqlPilot.Ssms.csproj", "{F6171428-0646-4546-8F06-EBC1843024DF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlPilot.Setup", "src\SqlPilot.Setup\SqlPilot.Setup.csproj", "{ACE517A4-0B50-44D5-97FC-5A194092B3BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlPilot.Tests", "tests\SqlPilot.Tests.csproj", "{85C35210-7B53-40DA-B059-5F7089DB5435}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SqlPilot.WindowsSmoke", "tests\SqlPilot.WindowsSmoke.csproj", "{6B4F9F0F-4A10-4A5F-8BB8-0873376537BC}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{D81CA308-8B2A-4564-9E8F-59CF9EC07EED}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkspaceSmoke", "tests\Workspace\WorkspaceSmoke.csproj", "{69A0CF74-B1B6-4AF4-8F83-8626D8DF1975}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B5BD987E-2830-4A02-B040-1C3EB3B8BA1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5BD987E-2830-4A02-B040-1C3EB3B8BA1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5BD987E-2830-4A02-B040-1C3EB3B8BA1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5BD987E-2830-4A02-B040-1C3EB3B8BA1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6171428-0646-4546-8F06-EBC1843024DF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6171428-0646-4546-8F06-EBC1843024DF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6171428-0646-4546-8F06-EBC1843024DF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6171428-0646-4546-8F06-EBC1843024DF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ACE517A4-0B50-44D5-97FC-5A194092B3BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ACE517A4-0B50-44D5-97FC-5A194092B3BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ACE517A4-0B50-44D5-97FC-5A194092B3BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ACE517A4-0B50-44D5-97FC-5A194092B3BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85C35210-7B53-40DA-B059-5F7089DB5435}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85C35210-7B53-40DA-B059-5F7089DB5435}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85C35210-7B53-40DA-B059-5F7089DB5435}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85C35210-7B53-40DA-B059-5F7089DB5435}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6B4F9F0F-4A10-4A5F-8BB8-0873376537BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B4F9F0F-4A10-4A5F-8BB8-0873376537BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B4F9F0F-4A10-4A5F-8BB8-0873376537BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B4F9F0F-4A10-4A5F-8BB8-0873376537BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69A0CF74-B1B6-4AF4-8F83-8626D8DF1975}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69A0CF74-B1B6-4AF4-8F83-8626D8DF1975}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69A0CF74-B1B6-4AF4-8F83-8626D8DF1975}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69A0CF74-B1B6-4AF4-8F83-8626D8DF1975}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{B5BD987E-2830-4A02-B040-1C3EB3B8BA1F} = {DC712937-B4C2-4005-8E81-B065C09C1851}
+		{F6171428-0646-4546-8F06-EBC1843024DF} = {DC712937-B4C2-4005-8E81-B065C09C1851}
+		{ACE517A4-0B50-44D5-97FC-5A194092B3BB} = {DC712937-B4C2-4005-8E81-B065C09C1851}
+		{69A0CF74-B1B6-4AF4-8F83-8626D8DF1975} = {D81CA308-8B2A-4564-9E8F-59CF9EC07EED}
+	EndGlobalSection
+EndGlobal

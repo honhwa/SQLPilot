@@ -1,0 +1,19 @@
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011">
+  <Metadata>
+    <Identity Id="SqlPilot.Ssms.SSMS_VERSION" Version="SQLPILOT_VERSION" Language="en-US" Publisher="Arash Ghasemi Rad" />
+    <DisplayName>SqlPilot</DisplayName>
+    <Description>SQL development assistant</Description>
+    <Icon>sqlpilot.png</Icon>
+  </Metadata>
+  <Installation AllUsers="true">
+    <InstallationTarget Id="Microsoft.VisualStudio.Ssms" Version="[22.0,23.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" Path="SqlPilot.pkgdef" />
+    <Asset Type="Microsoft.VisualStudio.MefComponent" Path="SqlPilot.Ssms.dll" />
+    <Asset Type="Microsoft.VisualStudio.Assembly" Path="SqlPilot.Core.dll" />
+    <Asset Type="Microsoft.VisualStudio.Assembly" Path="Microsoft.SqlServer.TransactSql.ScriptDom.dll" />
+  </Assets>
+</PackageManifest>

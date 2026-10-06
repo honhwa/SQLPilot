@@ -1,0 +1,55 @@
+SqlPilot Source-Available Use License 1.0
+
+Copyright (c) 2026 Arash Ghasemi Rad. All rights reserved.
+Author contact: https://t.me/ArashGhasemiRad
+Official repository: https://github.com/tyeety/SQLPilot
+
+1. Scope
+This license applies to the original SqlPilot source code, binaries, documentation,
+and artwork owned by Arash Ghasemi Rad (the Software). Third-party components
+remain governed by their own licenses; see THIRD_PARTY_NOTICES.md. This is a
+source-available license, not an Open Source Initiative approved license.
+
+2. Limited permission
+The copyright holder grants recipients a worldwide, non-exclusive, royalty-free,
+non-transferable permission to download, inspect, build without altering the
+source, install, and use the original, unmodified Software for personal or internal
+organizational purposes. This includes use in a business, without a license fee.
+You may make only the copies reasonably necessary for these purposes and backup.
+Generated SQL, your own queries, and your own database content are not licensed
+by this agreement. Editing application preferences or your own snippets through
+the intended interface is permitted and is not modification of the Software.
+
+3. Restrictions
+Except with prior written permission from the copyright holder, you may not:
+(a) modify, adapt, translate, patch, or create derivative works of the Software;
+(b) copy or reuse its source, artwork, or other substantial parts in another work;
+(c) redistribute, mirror, repackage, publish, or sublicense the Software or copies;
+(d) sell, rent, lease, charge for access to, or commercially distribute the Software,
+    including bundling it in a paid product or service; or
+(e) remove or alter author attribution, copyright, license, or trademark notices.
+Sharing a link to the official repository or its official downloads is permitted.
+
+4. Hosting-platform and statutory rights
+Public hosting necessarily permits technical copies. Nothing in this license
+withdraws rights granted to GitHub or other users under the hosting platform's
+applicable terms, including viewing and forking within GitHub. Nor does it restrict
+rights that applicable law makes non-waivable. Such rights do not grant additional
+permission under this license to modify, sell, or redistribute the Software.
+
+5. Attribution and permissions
+Retain this license, the author's name, and applicable third-party notices with
+all permitted copies. No trademark or endorsement right is granted. Request any
+additional permission directly from Arash Ghasemi Rad at the contact above.
+
+6. Termination
+The permissions in section 2 terminate automatically upon a violation of this
+license. Stop using the Software and remove copies not otherwise lawfully held.
+
+7. Warranty and liability
+THE SOFTWARE IS PROVIDED AS IS, WITHOUT ANY WARRANTY, EXPRESS OR IMPLIED,
+INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE COPYRIGHT HOLDER IS NOT LIABLE FOR ANY
+CLAIM, DAMAGE, OR OTHER LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+All rights not expressly granted are reserved.

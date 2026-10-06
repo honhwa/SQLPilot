@@ -1,0 +1,26 @@
+# Generated builds and installer payloads
+**/bin/
+**/obj/
+/artifacts/
+*.vsix
+*.exe
+*.dll
+*.pdb
+*.zip
+*.log
+
+# Local editor and user data
+.vs/
+.idea/
+*.user
+*.suo
+*.tmp
+*.bak
+test-data/
+work/
+.env
+.env.*
+
+# OS files
+Thumbs.db
+.DS_Store

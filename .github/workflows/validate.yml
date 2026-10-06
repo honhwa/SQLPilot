@@ -1,0 +1,20 @@
+name: Validate source
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: '8.0.x'
+      - name: Core and workspace tests
+        shell: pwsh
+        run: ./scripts/Test.ps1
+      - name: Check C# formatting
+        shell: pwsh
+        run: dotnet format whitespace . --folder --exclude artifacts .git --verify-no-changes

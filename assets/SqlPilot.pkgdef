@@ -1,0 +1,9 @@
+[$RootKey$\Packages\{c429a14e-8788-41a8-9e6f-95a2323c0fe3}]
+@="SqlPilot"
+"InprocServer32"="$WinDir$\\System32\\mscoree.dll"
+"Class"="SqlPilot.Ssms.ToolbarPackage"
+"CodeBase"="$PackageFolder$\\SqlPilot.Ssms.dll"
+[$RootKey$\AutoLoadPackages\{adfc4e64-0397-11d1-9f4e-00a0c911004f}]
+"{c429a14e-8788-41a8-9e6f-95a2323c0fe3}"=dword:00000000
+[$RootKey$\AutoLoadPackages\{f1536ef8-92ec-443c-9ed7-fdadf150da82}]
+"{c429a14e-8788-41a8-9e6f-95a2323c0fe3}"=dword:00000000

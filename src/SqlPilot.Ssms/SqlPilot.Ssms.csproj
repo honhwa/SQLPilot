@@ -1,0 +1,97 @@
+<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>SqlPilot.Ssms</AssemblyName>
+    <HostIde Condition="'$(HostIde)' == ''">C:\Program Files (x86)\Microsoft SQL Server Management Studio 20\Common7\IDE</HostIde>
+    <EditorPath>$(HostIde)\CommonExtensions\Microsoft\Editor</EditorPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/Design.cs" Link="Design.cs" />
+    <Compile Include="../Shared/ProductInfo.cs" Link="ProductInfo.cs" />
+    <EmbeddedResource Include="../../assets/sqlpilot.png" LogicalName="SqlPilot.Icon.png" />
+    <ProjectReference Include="../SqlPilot.Core/SqlPilot.Core.csproj" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.ComponentModel.Composition" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Security" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="Microsoft.VisualStudio.CoreUtility">
+      <HintPath>$(EditorPath)\Microsoft.VisualStudio.CoreUtility.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Text.Data">
+      <HintPath>$(EditorPath)\Microsoft.VisualStudio.Text.Data.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Text.Logic">
+      <HintPath>$(EditorPath)\Microsoft.VisualStudio.Text.Logic.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Text.UI">
+      <HintPath>$(EditorPath)\Microsoft.VisualStudio.Text.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Text.UI.Wpf">
+      <HintPath>$(EditorPath)\Microsoft.VisualStudio.Text.UI.Wpf.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Language.Intellisense">
+      <HintPath>$(EditorPath)\Microsoft.VisualStudio.Language.Intellisense.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Editor">
+      <HintPath>$(EditorPath)\Microsoft.VisualStudio.Editor.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="envdte" Condition="Exists('$(HostIde)\PublicAssemblies\envdte.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\envdte.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.CommandBars" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.CommandBars.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.CommandBars.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.OLE.Interop" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.OLE.Interop.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.OLE.Interop.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.TextManager.Interop" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.TextManager.Interop.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.TextManager.Interop.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Shell.15.0" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.15.0.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.15.0.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Shell.Framework" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Framework.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Framework.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Interop.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Interop.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop.8.0" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Interop.8.0.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Interop.8.0.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Shell.Interop.10.0" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Interop.10.0.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Shell.Interop.10.0.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Microsoft.VisualStudio.Interop" Condition="Exists('$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Interop.dll')">
+      <HintPath>$(HostIde)\PublicAssemblies\Microsoft.VisualStudio.Interop.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="stdole">
+      <HintPath>$(HostIde)\PublicAssemblies\stdole.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>
