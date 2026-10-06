@@ -12,7 +12,7 @@ Only Arash Ghasemi Rad or a maintainer with his written permission may publish r
 Typical checksum command:
 
 ```powershell
-Get-FileHash artifacts/release/SqlPilotSetup-0.13.1.exe -Algorithm SHA256
+Get-FileHash artifacts/release/SqlPilotSetup-0.13.2.exe -Algorithm SHA256
 ```
 
 GitHub Actions validates core/workspace behavior and formatting. It does not have installed SSMS host APIs and cannot substitute for host builds or interactive acceptance.

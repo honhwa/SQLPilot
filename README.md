@@ -8,18 +8,20 @@ Created by **Arash Ghasemi Rad** · [Telegram: @ArashGhasemiRad](https://t.me/Ar
 
 [Download releases](https://github.com/tyeety/SQLPilot/releases) · [فارسی](README.fa.md) · [License](LICENSE)
 
-SqlPilot provides local, database-aware completion, editable snippets, SQL diagnostics and a searchable query library. The interface and installer are in English. Current version: **0.13.1**. AI/Codex generation is not included.
+SqlPilot provides local, database-aware completion, editable snippets, SQL diagnostics and a searchable query library. The interface and installer are in English. Current version: **0.13.2**. AI/Codex generation is not included.
 
 ## Install
 
-1. Download `SqlPilotSetup-0.13.1.exe` from the official [Releases](https://github.com/tyeety/SQLPilot/releases) page.
-2. Save your queries and close the SSMS versions you want to update.
+1. Download `SqlPilotSetup-0.13.2.exe` from the official [Releases](https://github.com/tyeety/SQLPilot/releases) page.
+2. Save your queries. You can leave SSMS open while setup prepares the update.
 3. Run the installer, select the detected SSMS versions and click **Install selected components**. Administrator access is required for host installation.
-4. Restart SSMS, open a connected SQL query tab and use the **SqlPilot** toolbar button.
+4. If SSMS is running, setup shows **Prepared · restart required**. Close that version normally; background setup applies the update after all its processes exit. Wait for **Installed · ready to open**, then use **Open SSMS** to choose the version to launch. Open a connected SQL query tab and use the **SqlPilot** toolbar button.
+
+Pending setup continues if you close the installer window. Keep Windows running and SSMS closed until it finishes; reopening SSMS immediately can interrupt installation. **Cancel pending** cancels jobs still waiting, not an installation already applying files. Jobs expire after 24 hours and do not survive a Windows restart; run setup again if interrupted. If the installer is closed, completion/errors are recorded in `%LOCALAPPDATA%\SqlPilot\PendingSetup\<job>\status.json`. Setup never closes SSMS or executes your SQL. The launch button uses the Windows shell so SSMS does not inherit administrator privileges from setup.
 
 The installer displays existing versions and identifies Install, Upgrade, Reinstall or Downgrade. Downgrades require confirmation; existing installations are backed up. Do not treat a copied extension folder as proof that SSMS loaded it.
 
-The executable is currently unsigned. Download it only from this repository's official releases and compare its SHA-256 with the release checksum file. The installer is self-contained; no separate .NET 8 installation is required to run it.
+The executable is currently unsigned. Windows may show **Windows protected your PC / Unknown publisher** because it has no trusted Authenticode signature or established reputation. This release does not suppress Windows protections. A trusted publisher certificate and timestamp are needed for signing; signing alone does not guarantee removal of every SmartScreen warning ([Microsoft guidance](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)). Download it only from this repository's official releases and compare its SHA-256 with the release checksum file. The installer is self-contained; no separate .NET 8 installation is required to run it.
 
 ## Compatibility
 
@@ -85,7 +87,7 @@ For a custom installation path:
 pwsh -File scripts/Build.ps1 -Ssms20 'D:\SSMS20\Common7\IDE'
 ```
 
-The installer is written to `artifacts/release/SqlPilotSetup-0.13.1.exe`. Build products and installer payloads are ignored by Git. The installer compiles host adapters using the selected installation's editor assemblies; successful compilation cannot guarantee future host compatibility.
+The installer is written to `artifacts/release/SqlPilotSetup-0.13.2.exe`. Build products and installer payloads are ignored by Git. The installer compiles host adapters using the selected installation's editor assemblies; successful compilation cannot guarantee future host compatibility.
 
 `Test.ps1` runs core and Windows workspace fixtures without executing application SQL. Optional LocalDB metadata testing requires an explicitly named, dedicated test instance; see [building](docs/BUILDING.md). [GitHub Actions](.github/workflows/validate.yml) runs the local tests and formatting checks; it does not simulate a connected SSMS editor.
 

@@ -19,7 +19,7 @@ The installer embeds source, Core/ScriptDom assemblies and compiler reference as
 ## Installer self-test
 
 ```powershell
-$exe = (Resolve-Path artifacts/release/SqlPilotSetup-0.13.1.exe).Path
+$exe = (Resolve-Path artifacts/release/SqlPilotSetup-0.13.2.exe).Path
 $report = Join-Path (Get-Location) 'artifacts/setup-selftest.json'
 $process = Start-Process -FilePath $exe -ArgumentList @('--self-test', '--report', ('"' + $report + '"')) -WindowStyle Hidden -PassThru -Wait
 if ($process.ExitCode -ne 0) { throw 'Installer self-test failed.' }

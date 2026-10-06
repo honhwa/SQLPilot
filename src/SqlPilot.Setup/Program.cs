@@ -31,13 +31,18 @@ static class Program
                     error = ex.ToString()
                 }));
             }
-            if (!args.Contains("--detect") && !args.Contains("--self-test") && !args.Contains("--install-headless"))
+            if (!args.Contains("--detect") && !args.Contains("--self-test") && !args.Contains("--install-headless") && !args.Contains("--deferred-install"))
                 MessageBox.Show(ex.Message, "SqlPilot setup", MessageBoxButton.OK, MessageBoxImage.Error);
             Environment.ExitCode = 1;
         }
     }
     static void Run(string[] args)
     {
+        if (args.Contains("--deferred-install"))
+        {
+            DeferredInstall.Run(args);
+            return;
+        }
         if (args.Contains("--detect") || args.Contains("--self-test"))
         {
             string report = args.SkipWhile(a => a != "--report").Skip(1).FirstOrDefault() ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SqlPilot", "setup-detection.json");
@@ -91,6 +96,8 @@ static class Program
                 if (Directory.EnumerateFiles(Path.Combine(installer.Root, "source"), "Codex*.cs").Any() || File.Exists(Path.Combine(installer.Root, "assets", "SqlPilot-CodexPlugin.zip")))
                     throw new Exception("Retired AI payload found");
                 passed++;
+                passed += DeferredInstall.Checks(installer.Root);
+                passed += SetupWindow.Checks(args.SkipWhile(a => a != "--preview").Skip(1).FirstOrDefault());
                 passed += VersionChecks.Run(installer.Root);
                 passed += CleanupChecks.Run(installer.Root);
                 output["selfTestChecksPassed"] = passed;

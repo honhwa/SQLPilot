@@ -113,13 +113,22 @@ public static class Detection
         int major = match.Success ? int.Parse(match.Groups[1].Value) : version.ProductMajorPart;
         return new Host { Name = "SSMS " + major, Ide = ide, Major = major };
     }
-    public static bool Running(Host host) => Process.GetProcessesByName("ssms").Any(p =>
+    public static bool Running(Host host)
     {
+        var processes = Process.GetProcessesByName("ssms");
         try
         {
-            return string.Equals(p.MainModule?.FileName, host.Executable, StringComparison.OrdinalIgnoreCase);
+            foreach (var process in processes)
+            {
+                try
+                {
+                    if (string.Equals(process.MainModule?.FileName, host.Executable, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+                catch { return true; }
+            }
+            return false;
         }
-        catch { return true; }
-        finally { p.Dispose(); }
-    });
+        finally { foreach (var process in processes) process.Dispose(); }
+    }
 }
