@@ -2,6 +2,14 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.7](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.7) — 2026-10-07
+
+- Automatically select and preview the first saved query when opening SQL Library; focus the list for keyboard navigation.
+- Add Ctrl+Enter to Insert into query, display the shortcut on the button and support Up/Down navigation from the list or search field.
+- Persist library order by last successful insertion into the query editor, independently of edits or saves.
+- Retain recent ordering while searching; clear stale previews when search has no results and preserve incoming new-query drafts.
+- Add persistence and actual dialog-control checks for selection, navigation, shortcuts, filtering and draft preservation.
+
 ## [0.13.6](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.6) — 2026-10-07
 
 - Include SQL column types, lengths/precision and nullability in INSERT value comments.

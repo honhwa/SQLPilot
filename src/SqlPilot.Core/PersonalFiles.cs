@@ -90,6 +90,10 @@ namespace SqlPilot.Core
         {
             get; set;
         }
+        public DateTime LastInsertedUtc
+        {
+            get; set;
+        }
         public override string ToString() => Title + "  ·  " + Category;
     }
     public sealed class SqlLibrary
@@ -114,8 +118,8 @@ namespace SqlPilot.Core
                 var row = XElement.Load(path);
                 var id = Path.GetFileNameWithoutExtension(path);
                 EntryPath(id);
-                return new LibraryEntry { Id = id, Title = (string)row.Element("Title"), Category = (string)row.Element("Category") ?? "General", Tags = (string)row.Element("Tags") ?? "", Sql = (string)row.Element("Sql") ?? "", UpdatedUtc = (DateTime?)row.Element("UpdatedUtc") ?? DateTime.MinValue };
-            }).OrderByDescending(e => e.UpdatedUtc).ToList();
+                return new LibraryEntry { Id = id, Title = (string)row.Element("Title"), Category = (string)row.Element("Category") ?? "General", Tags = (string)row.Element("Tags") ?? "", Sql = (string)row.Element("Sql") ?? "", UpdatedUtc = (DateTime?)row.Element("UpdatedUtc") ?? DateTime.MinValue, LastInsertedUtc = (DateTime?)row.Element("LastInsertedUtc") ?? DateTime.MinValue };
+            }).OrderByDescending(e => e.LastInsertedUtc).ThenByDescending(e => e.UpdatedUtc).ThenBy(e => e.Id, StringComparer.Ordinal).ToList();
         }
         public LibraryEntry Save(LibraryEntry entry)
         {
@@ -125,11 +129,25 @@ namespace SqlPilot.Core
                 throw new ArgumentException("Enter SQL text.");
             string id = entry.Id ?? Guid.NewGuid().ToString("N"), path = EntryPath(id);
             var time = DateTime.UtcNow;
-            PersonalFiles.Write(path, new XElement("SqlPilotQuery", new XElement("Title", entry.Title.Trim()), new XElement("Category", string.IsNullOrWhiteSpace(entry.Category) ? "General" : entry.Category.Trim()), new XElement("Tags", entry.Tags ?? ""), new XElement("Sql", entry.Sql), new XElement("UpdatedUtc", time)).ToString());
+            // Editing an entry must preserve usage order, even when the editor holds a stale copy.
+            var lastInserted = File.Exists(path) ? (DateTime?)XElement.Load(path).Element("LastInsertedUtc") ?? DateTime.MinValue : DateTime.MinValue;
+            PersonalFiles.Write(path, new XElement("SqlPilotQuery", new XElement("Title", entry.Title.Trim()), new XElement("Category", string.IsNullOrWhiteSpace(entry.Category) ? "General" : entry.Category.Trim()), new XElement("Tags", entry.Tags ?? ""), new XElement("Sql", entry.Sql), new XElement("UpdatedUtc", time), new XElement("LastInsertedUtc", lastInserted)).ToString());
             entry.Id = id;
             entry.UpdatedUtc = time;
+            entry.LastInsertedUtc = lastInserted;
             SqlPath(entry);
             return entry;
+        }
+        public void MarkInserted(string id)
+        {
+            string path = EntryPath(id);
+            var row = XElement.Load(path);
+            var newest = Load().Select(e => e.LastInsertedUtc).DefaultIfEmpty(DateTime.MinValue).Max();
+            var now = DateTime.UtcNow;
+            if (newest >= now && newest < DateTime.MaxValue)
+                now = newest.AddTicks(1);
+            row.SetElementValue("LastInsertedUtc", now);
+            PersonalFiles.Write(path, row.ToString());
         }
         public static IEnumerable<LibraryEntry> Search(IEnumerable<LibraryEntry> entries, string query, string category)
         {

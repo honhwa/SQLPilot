@@ -156,6 +156,25 @@ try
     library.Save(restored);
     Check(library.Load().Count == 2 && library.Load().Single(e => e.Id == entry.Id).Category == "CRM", "library edit retains identity and changes category");
     Check(System.IO.File.ReadAllText(library.SqlPath(restored)) == restored.Sql, "library opens real SQL file with exact saved text");
+    var unused = library.Load().Single(e => e.Id != entry.Id);
+    string legacyPath = System.IO.Path.Combine(personalRoot, "Library", unused.Id + ".xml");
+    var legacyEntry = System.Xml.Linq.XElement.Load(legacyPath);
+    legacyEntry.Element("LastInsertedUtc").Remove();
+    legacyEntry.Add(new System.Xml.Linq.XElement("ExtraMetadata", "preserve"));
+    PersonalFiles.Write(legacyPath, legacyEntry.ToString());
+    Check(library.Load().All(e => e.LastInsertedUtc == DateTime.MinValue), "Legacy library entries load without insertion history");
+    string sqlFile = library.SqlPath(restored);
+    var sqlWriteTime = System.IO.File.GetLastWriteTimeUtc(sqlFile);
+    library.MarkInserted(unused.Id);
+    Check((string)System.Xml.Linq.XElement.Load(legacyPath).Element("ExtraMetadata") == "preserve", "Usage recording preserves extra metadata in older library files");
+    Check(new SqlLibrary(System.IO.Path.Combine(personalRoot, "Library")).Load().First().Id == unused.Id, "Recent INSERT order persists after reloading the library");
+    library.MarkInserted(restored.Id);
+    var inserted = library.Load().First();
+    Check(inserted.Id == restored.Id && inserted.LastInsertedUtc > library.Load().Single(e => e.Id == unused.Id).LastInsertedUtc, "Latest inserted query is first even for consecutive inserts");
+    Check(inserted.UpdatedUtc == restored.UpdatedUtc && inserted.Sql == restored.Sql && System.IO.File.GetLastWriteTimeUtc(sqlFile) == sqlWriteTime, "Insertion usage preserves SQL content modification time and SQL files");
+    library.Save(new LibraryEntry { Id = unused.Id, Title = unused.Title, Category = unused.Category, Tags = unused.Tags, Sql = unused.Sql });
+    Check(library.Load().First().Id == restored.Id && library.Load().Single(e => e.Id == unused.Id).LastInsertedUtc > DateTime.MinValue, "Editing an entry preserves usage order with a fresh editor copy");
+    Check(SqlLibrary.Search(library.Load(), "SELECT", null).First().Id == restored.Id, "Library search preserves recent insertion ordering");
     bool traversal = false;
     try
     {

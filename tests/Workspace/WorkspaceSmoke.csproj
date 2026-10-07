@@ -12,6 +12,8 @@
     <Compile Include="../../src/SqlPilot.Ssms/SessionFiles.cs" Link="SessionFiles.cs" />
     <Compile Include="../../src/Shared/Design.cs" Link="Design.cs" />
     <Compile Include="../../src/SqlPilot.Ssms/KeyboardShortcuts.cs" Link="KeyboardShortcuts.cs" />
+    <Compile Include="../../src/SqlPilot.Ssms/PersonalDialogs.cs" Link="PersonalDialogs.cs" />
+    <ProjectReference Include="../../src/SqlPilot.Core/SqlPilot.Core.csproj" />
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="System.Security" />
     <Reference Include="System.Xml.Linq" />

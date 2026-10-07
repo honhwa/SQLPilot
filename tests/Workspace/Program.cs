@@ -70,6 +70,7 @@ class Program
         check(new FileInfo(diagnosticLog).Length <= 64, "large Unicode diagnostic entry stays bounded");
         AboutChecks.Run(check);
         ExplorerChecks.Run(check);
+        LibraryChecks.Run(check);
         Console.WriteLine(n + " workspace checks passed.");
     }
 }
@@ -85,9 +86,9 @@ namespace SqlPilot.Ssms
         {
         }
     }
-    internal static class PersonalDialogs
+    internal static class Diagnostics
     {
-        internal static void ShowSnippets()
+        internal static void Write(string message)
         {
         }
     }

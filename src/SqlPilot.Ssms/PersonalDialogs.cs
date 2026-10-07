@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using Microsoft.Win32;
 using SqlPilot.Core;
@@ -122,12 +123,17 @@ namespace SqlPilot.Ssms
         internal static void ShowLibrary(string initialSql = null, string initialTitle = null, Action<string> insert = null, Action<string> open = null)
         {
             var store = new SqlLibrary(Path.Combine(Root, "Library"));
-            List<LibraryEntry> entries;
+            Window window;
             try
             {
-                entries = store.Load();
+                window = CreateLibraryWindow(store, initialSql, initialTitle, insert, open);
             }
             catch (Exception ex) { MessageBox.Show("Library could not be loaded: " + ex.Message, "SqlPilot Library"); return; }
+            window.ShowDialog();
+        }
+        internal static Window CreateLibraryWindow(SqlLibrary store, string initialSql = null, string initialTitle = null, Action<string> insert = null, Action<string> open = null)
+        {
+            var entries = store.Load();
             var grid = new Grid { Margin = new Thickness(0) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
             grid.ColumnDefinitions.Add(new ColumnDefinition());
@@ -135,10 +141,11 @@ namespace SqlPilot.Ssms
             grid.Children.Add(left);
             left.Children.Add(new TextBlock { Text = "SQL Library", FontSize = 22 });
             var search = Field(left, "Search title, tags and SQL");
+            search.Name = "LibrarySearch";
             left.Children.Add(new TextBlock { Text = "Category", Margin = new Thickness(0, 8, 0, 4) });
             var filter = new ComboBox();
             left.Children.Add(filter);
-            var list = new ListBox { Height = 285, Margin = new Thickness(0, 10, 0, 0) };
+            var list = new ListBox { Name = "LibraryList", Height = 285, Margin = new Thickness(0, 10, 0, 0) };
             left.Children.Add(list);
             var right = new StackPanel();
             Grid.SetColumn(right, 1);
@@ -147,16 +154,31 @@ namespace SqlPilot.Ssms
             var category = Field(right, "Category");
             var tags = Field(right, "Tags");
             var sql = Field(right, "SQL", true);
-            var status = new TextBlock { Text = "Stored locally. Open and Insert never execute SQL.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
+            sql.Name = "LibrarySql";
+            var status = new TextBlock { Text = "↑ / ↓ Select query · Ctrl+Enter Insert into query\nStored locally. Open and Insert never execute SQL.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
             right.Children.Add(status);
             LibraryEntry selected = null;
-            bool loading = false, dirty = false;
+            bool loading = false, dirty = false, draftMode = initialSql != null;
             Func<bool> discard = () => !dirty || MessageBox.Show("Discard unsaved library edits?", "SqlPilot Library", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
             Action<LibraryEntry> populate = e => { loading = true; selected = e; title.Text = e?.Title ?? ""; category.Text = e?.Category ?? "General"; tags.Text = e?.Tags ?? ""; sql.Text = e?.Sql ?? ""; loading = false; dirty = false; };
             foreach (var box in new[] { title, category, tags, sql })
                 box.TextChanged += (_, __) => { if (!loading) dirty = true; };
-            Action refresh = () => { loading = true; string prior = filter.SelectedItem as string; filter.ItemsSource = new[] { "All categories" }.Concat(entries.Select(e => e.Category).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c)).ToList(); filter.SelectedItem = prior ?? "All categories"; if (filter.SelectedItem == null) filter.SelectedIndex = 0; list.ItemsSource = SqlLibrary.Search(entries, search.Text, (string)filter.SelectedItem == "All categories" ? null : (string)filter.SelectedItem).ToList(); loading = false; };
-            list.SelectionChanged += (_, __) => { if (loading) return; var next = list.SelectedItem as LibraryEntry; if (next == null || next == selected) return; if (!discard()) { loading = true; list.SelectedItem = selected; loading = false; return; } populate(next); };
+            Action refresh = () =>
+            {
+                loading = true;
+                string prior = filter.SelectedItem as string;
+                filter.ItemsSource = new[] { "All categories" }.Concat(entries.Select(e => e.Category).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(c => c)).ToList();
+                filter.SelectedItem = prior ?? "All categories";
+                if (filter.SelectedItem == null)
+                    filter.SelectedIndex = 0;
+                var visible = SqlLibrary.Search(entries, search.Text, (string)filter.SelectedItem == "All categories" ? null : (string)filter.SelectedItem).ToList();
+                list.ItemsSource = visible;
+                list.SelectedItem = visible.FirstOrDefault(e => e.Id == selected?.Id) ?? (!draftMode && !dirty ? visible.FirstOrDefault() : null);
+                loading = false;
+                if (!draftMode && !dirty)
+                    populate(list.SelectedItem as LibraryEntry);
+            };
+            list.SelectionChanged += (_, __) => { if (loading) return; var next = list.SelectedItem as LibraryEntry; if (next == null || next == selected) return; if (!discard()) { loading = true; list.SelectedItem = selected; loading = false; return; } draftMode = false; populate(next); };
             search.TextChanged += (_, __) => { if (!loading) refresh(); };
             filter.SelectionChanged += (_, __) => { if (!loading) refresh(); };
             var actions = new WrapPanel();
@@ -164,25 +186,71 @@ namespace SqlPilot.Ssms
             var window = Window("SqlPilot · SQL Library", grid);
             window.Height = 780;
             window.MinHeight = 700;
-            Button(actions, "New", () => { if (discard()) { populate(null); loading = true; list.SelectedItem = null; loading = false; title.Focus(); } });
-            Button(actions, "Save", () => { var entry = new LibraryEntry { Id = selected?.Id, Title = title.Text, Category = category.Text, Tags = tags.Text, Sql = sql.Text }; store.Save(entry); entries = store.Load(); selected = entries.First(e => e.Id == entry.Id); dirty = false; refresh(); loading = true; list.SelectedItem = selected; loading = false; status.Text = "Saved to SQL Library."; });
-            Button(actions, "Import .sql", () => { if (!discard()) return; var file = new OpenFileDialog { Filter = "SQL files (*.sql)|*.sql", Multiselect = false }; if (file.ShowDialog() == true) { populate(null); title.Text = Path.GetFileNameWithoutExtension(file.FileName); sql.Text = File.ReadAllText(file.FileName); dirty = true; } });
+            Button(actions, "New", () => { if (discard()) { draftMode = true; populate(null); loading = true; list.SelectedItem = null; loading = false; title.Focus(); } });
+            Button(actions, "Save", () => { var entry = new LibraryEntry { Id = selected?.Id, Title = title.Text, Category = category.Text, Tags = tags.Text, Sql = sql.Text }; store.Save(entry); entries = store.Load(); selected = entries.First(e => e.Id == entry.Id); dirty = false; draftMode = false; refresh(); status.Text = "Saved to SQL Library."; });
+            Button(actions, "Import .sql", () => { if (!discard()) return; var file = new OpenFileDialog { Filter = "SQL files (*.sql)|*.sql", Multiselect = false }; if (file.ShowDialog() == true) { draftMode = true; populate(null); loading = true; list.SelectedItem = null; loading = false; title.Text = Path.GetFileNameWithoutExtension(file.FileName); sql.Text = File.ReadAllText(file.FileName); dirty = true; } });
             Button(actions, "Export .sql", () => { var file = new SaveFileDialog { Filter = "SQL files (*.sql)|*.sql", DefaultExt = ".sql", FileName = "Query.sql" }; if (file.ShowDialog() == true) File.WriteAllText(file.FileName, sql.Text, new System.Text.UTF8Encoding(false)); });
-            var insertButton = Button(actions, "Insert into query", () => { if (!discard()) return; insert(sql.Text); dirty = false; window.Close(); });
-            insertButton.IsEnabled = insert != null;
+            var insertButton = Button(actions, "Insert into query (Ctrl+Enter)", () =>
+            {
+                if (insert == null || string.IsNullOrWhiteSpace(sql.Text) || !discard())
+                    return;
+                insert(sql.Text);
+                if (selected != null)
+                {
+                    try
+                    {
+                        store.MarkInserted(selected.Id);
+                    }
+                    catch (Exception ex) { Diagnostics.Write("Library usage save failed: " + ex.GetType().Name); }
+                }
+                dirty = false;
+                window.Close();
+            });
+            insertButton.Name = "LibraryInsert";
+            insertButton.ToolTip = "Insert selected query · Ctrl+Enter";
+            insertButton.IsEnabled = insert != null && !string.IsNullOrWhiteSpace(sql.Text);
+            sql.TextChanged += (_, __) => insertButton.IsEnabled = insert != null && !string.IsNullOrWhiteSpace(sql.Text);
             var openButton = Button(actions, "Open SQL tab", () => { if (selected == null || dirty) throw new InvalidOperationException("Save the library entry first."); open(store.SqlPath(selected)); window.Close(); });
             openButton.IsEnabled = open != null;
             Button(actions, "Close", () => window.Close());
             window.Closing += (_, e) => { if (!discard()) e.Cancel = true; };
+            window.PreviewKeyDown += (_, e) =>
+            {
+                e.Handled = HandleLibraryKey(e.Key, Keyboard.Modifiers, search.IsKeyboardFocusWithin || list.IsKeyboardFocusWithin, list, insertButton);
+            };
             refresh();
-            populate(null);
             if (initialSql != null)
             {
+                populate(null);
                 title.Text = initialTitle ?? "Untitled query";
                 sql.Text = initialSql;
                 dirty = true;
             }
-            window.ShowDialog();
+            window.Loaded += (_, __) => { if (draftMode) title.Focus(); else list.Focus(); };
+            return window;
+        }
+        internal static void MoveLibrarySelection(ListBox list, Key key)
+        {
+            if (list.Items.Count == 0)
+                return;
+            int next = list.SelectedIndex < 0 ? 0 : Math.Max(0, Math.Min(list.Items.Count - 1, list.SelectedIndex + (key == Key.Up ? -1 : 1)));
+            list.SelectedIndex = next;
+            list.ScrollIntoView(list.SelectedItem);
+        }
+        internal static bool HandleLibraryKey(Key key, ModifierKeys modifiers, bool browsing, ListBox list, Button insert)
+        {
+            if (key == Key.Enter && modifiers == ModifierKeys.Control)
+            {
+                if (insert.IsEnabled)
+                    insert.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+                return true;
+            }
+            if (browsing && modifiers == ModifierKeys.None && (key == Key.Up || key == Key.Down))
+            {
+                MoveLibrarySelection(list, key);
+                return true;
+            }
+            return false;
         }
     }
 }
