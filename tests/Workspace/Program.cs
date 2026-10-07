@@ -71,6 +71,7 @@ class Program
         AboutChecks.Run(check);
         ExplorerChecks.Run(check);
         LibraryChecks.Run(check);
+        UpdateChecks.Run(check);
         Console.WriteLine(n + " workspace checks passed.");
     }
 }

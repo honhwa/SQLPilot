@@ -23,6 +23,11 @@ namespace SqlPilot.Ssms
                 UserSettings.Show();
                 return;
             }
+            if (command == "Updates")
+            {
+                Updates.Show();
+                return;
+            }
             if (command == "Shortcuts")
             {
                 KeyboardShortcuts.Show();
@@ -131,6 +136,7 @@ namespace SqlPilot.Ssms
             menu.Items.Add(new Separator());
             menu.Items.Add(item("Keyboard shortcuts…", "Shortcuts"));
             menu.Items.Add(item("Settings…", "Settings"));
+            menu.Items.Add(item(Updates.MenuLabel, "Updates"));
             menu.Items.Add(item("About & help", "Help"));
             menu.IsOpen = true;
         }

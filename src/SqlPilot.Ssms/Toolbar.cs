@@ -52,10 +52,23 @@ namespace SqlPilot.Ssms
                 while (bar.Controls.Count > 0)
                     bar.Controls[1].Delete(false);
                 Add("SqlPilot", null, true, () => MainMenu.Show(dte));
+                Updates.Changed += UpdateCaption;
+                Updates.Start(System.Windows.Threading.Dispatcher.CurrentDispatcher);
+                UpdateCaption();
                 bar.Visible = true;
                 Diagnostics.Write("Main SqlPilot toolbar initialized.");
             }
             catch (Exception ex) { Diagnostics.Write("Toolbar initialization failed: " + ex); }
+        }
+        void UpdateCaption()
+        {
+            if (buttons.Count == 0)
+                return;
+            try
+            {
+                buttons[0].Caption = Updates.Available ? "SqlPilot · Update" : "SqlPilot";
+            }
+            catch (COMException) { }
         }
         CommandBarButton Add(string caption, Action<Controller> action, bool icon, Action globalAction = null)
         {
@@ -91,6 +104,8 @@ namespace SqlPilot.Ssms
         }
         protected override void Dispose(bool disposing)
         {
+            if (disposing)
+                Updates.Changed -= UpdateCaption;
             if (disposing && bar != null)
             {
                 try

@@ -19,6 +19,8 @@ SqlPilot provides local, database-aware completion, editable snippets, SQL diagn
 
 Keep Windows running until pending installation finishes. See [installation details](docs/INSTALLATION.md) for background updates and troubleshooting.
 
+SqlPilot checks for new stable GitHub releases in the background. Use **SqlPilot → Check for updates** or **Update to…** to download the verified installer and open setup. A new version also adds an **Update** indicator to the toolbar button.
+
 ## Compatibility
 
 Setup detects local SSMS installations and builds an adapter against their editor APIs. Compatibility depends on the host and database metadata permissions; see [validation](docs/VALIDATION.md).

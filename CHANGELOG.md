@@ -2,6 +2,15 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.8](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.8) — 2026-10-07
+
+- Check GitHub's latest stable release in the background after startup and every six hours; show an Update indicator on the SqlPilot toolbar when a newer version is available.
+- Add Check for updates / Update to the SqlPilot menu, with an English progress window for downloading and opening official setup.
+- Validate release versions and official asset URLs, enforce download size/time limits and verify the installer against SHA256SUMS before opening it.
+- Reuse a verified cached installer, remove interrupted downloads and retire old inactive copies while preserving running installers.
+- Keep SSMS open while setup stages updates; finish installation after saving queries and closing the selected SSMS host normally.
+- Add update transport, version selection, integrity, cancellation and cache lifecycle checks.
+
 ## [0.13.7](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.7) — 2026-10-07
 
 - Automatically select and preview the first saved query when opening SQL Library; focus the list for keyboard navigation.
