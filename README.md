@@ -15,7 +15,7 @@ SqlPilot provides local, database-aware completion, editable snippets, SQL diagn
 1. Download the installer from the official [Releases](https://github.com/tyeety/SQLPilot/releases) page.
 2. Save your queries. You can leave SSMS open while setup prepares the update.
 3. Run the installer, select the detected SSMS versions and click **Install selected components**. Administrator access is required for host installation.
-4. If SSMS is running, setup shows **Prepared · restart required**. Close that version normally; background setup applies the update after all its processes exit. Wait for **Installed · ready to open**, then use **Open SSMS** to choose the version to launch. Open a connected SQL query tab and use the **SqlPilot** toolbar button.
+4. If SSMS is running, setup shows **Prepared · restart required**. Close that version normally; background setup applies the update after all its processes exit. Wait for **Installed · ready to open**, then click **Open SSMS** in that version's row. Open a connected SQL query tab and use the **SqlPilot** toolbar button.
 
 Keep Windows running until pending installation finishes. See [installation details](docs/INSTALLATION.md) for background updates and troubleshooting.
 
@@ -27,6 +27,7 @@ Setup detects local SSMS installations and builds an adapter against their edito
 
 - Contextual tables, views, columns, procedures, functions and SQL keyword suggestions; flexible initials/substring matching, subtle matched-character highlighting and schema provenance.
 - Alias-aware completion and procedure parameter placeholders. Tab and Shift+Tab move through inserted parameters.
+- Accept a table after `INSERT INTO` to generate writable columns and a multiline `VALUES` template. Tab moves between values; existing INSERT continuations are preserved.
 - JOIN targets ranked by declared foreign keys; ON conditions include composite and reverse relationships. Relations are never guessed solely from column names.
 - **Tab on a SELECT projection `*`** expands visible columns vertically. A small editor hint explains the action when expansion is available.
 - Editable Tab snippets, such as `ssf` → `SELECT * FROM`, and configurable keyboard shortcuts.

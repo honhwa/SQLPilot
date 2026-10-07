@@ -2,6 +2,13 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.5](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.5) — 2026-10-07
+
+- Move Open SSMS into each detected host row; enable it only after that host installs successfully, including background updates.
+- Generate an explicit column list and multiline VALUES body when accepting an unfinished INSERT INTO table target.
+- Exclude identity, computed, rowversion, hidden and generated columns; use DEFAULT VALUES when no writable columns remain.
+- Select editable value placeholders and navigate them with Tab; preserve existing SELECT, VALUES and column-list continuations.
+
 ## [0.13.4](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.4) — 2026-10-07
 
 - Dispose installer extraction directories after interactive, headless and self-test runs, including extraction failures.

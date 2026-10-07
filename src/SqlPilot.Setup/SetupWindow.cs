@@ -21,7 +21,23 @@ public sealed class HostChoice : INotifyPropertyChanged
         get;
     }
     public string Name => Host.Name; public string Path => Host.Ide; public string InstalledVersion => Host.InstalledVersion; public string Operation => Host.Operation;
-    bool selected; string result;
+    bool selected; string result; bool canOpen; bool canSelect = true;
+    public bool CanOpen
+    {
+        get => canOpen; set
+        {
+            canOpen = value;
+            Changed(nameof(CanOpen));
+        }
+    }
+    public bool CanSelect
+    {
+        get => canSelect; set
+        {
+            canSelect = value;
+            Changed(nameof(CanSelect));
+        }
+    }
     public bool Selected
     {
         get => selected; set
@@ -70,7 +86,6 @@ sealed class SetupWindow : Window
     readonly ObservableCollection<HostChoice> hosts = new();
     readonly DataGrid grid = new() { AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, CanUserResizeRows = false, HeadersVisibility = DataGridHeadersVisibility.Column, MinRowHeight = 74, ColumnHeaderHeight = 38, GridLinesVisibility = DataGridGridLinesVisibility.None, Background = Brushes.Transparent, BorderThickness = new Thickness(0), SelectionMode = DataGridSelectionMode.Single, MinHeight = 160 };
     readonly Button install = Design.Primary("Install selected components");
-    readonly Button open = new() { Content = "Open SSMS", Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 10, 0) };
     readonly Button cancel = new() { Content = "Cancel pending", Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, 10, 0) };
     readonly List<Host> ready = new();
     readonly Dictionary<HostChoice, string> pending = new();
@@ -111,12 +126,13 @@ sealed class SetupWindow : Window
         var check = new FrameworkElementFactory(typeof(CheckBox));
         check.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
         check.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        check.SetBinding(UIElement.IsEnabledProperty, new Binding("CanSelect"));
         check.SetBinding(CheckBox.IsCheckedProperty, new Binding("Selected") { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
         grid.Columns.Add(new DataGridTemplateColumn { Header = "Install", CellTemplate = new DataTemplate { VisualTree = check }, Width = 65 });
         grid.Columns.Add(new DataGridTextColumn { Header = "SSMS version", Binding = new Binding("Name"), Width = 150, IsReadOnly = true });
         grid.Columns.Add(new DataGridTextColumn { Header = "Installed SqlPilot", Binding = new Binding("InstalledVersion"), Width = 130, IsReadOnly = true });
         grid.Columns.Add(new DataGridTextColumn { Header = "Installation folder", Binding = new Binding("Path"), MinWidth = 180, Width = new DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly = true });
-        grid.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding("Result"), Width = 160, IsReadOnly = true });
+        grid.Columns.Add(new DataGridTextColumn { Header = "Status", Binding = new Binding("Result"), Width = 140, IsReadOnly = true });
         var textStyle = new Style(typeof(TextBlock));
         textStyle.Setters.Add(new Setter(TextBlock.TextWrappingProperty, TextWrapping.Wrap));
         textStyle.Setters.Add(new Setter(FrameworkElement.MarginProperty, new Thickness(7, 8, 7, 8)));
@@ -129,6 +145,18 @@ sealed class SetupWindow : Window
         downgradeStyle.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
         statusStyle.Triggers.Add(downgradeStyle);
         ((DataGridTextColumn)grid.Columns.Last()).ElementStyle = statusStyle;
+        var launch = new FrameworkElementFactory(typeof(Button));
+        launch.SetValue(ContentControl.ContentProperty, "Open SSMS");
+        launch.SetValue(FrameworkElement.MarginProperty, new Thickness(4));
+        launch.SetValue(Control.PaddingProperty, new Thickness(10, 8, 10, 8));
+        launch.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center);
+        launch.SetBinding(UIElement.IsEnabledProperty, new Binding("CanOpen"));
+        launch.AddHandler(Button.ClickEvent, new RoutedEventHandler((sender, e) =>
+        {
+            if (((FrameworkElement)sender).DataContext is HostChoice choice && choice.CanOpen)
+                Launch(choice.Host);
+        }));
+        grid.Columns.Add(new DataGridTemplateColumn { Header = "Launch", CellTemplate = new DataTemplate { VisualTree = launch }, Width = 118 });
         grid.ItemsSource = hosts;
         Grid.SetRow(grid, 1);
         panel.Children.Add(grid);
@@ -144,7 +172,6 @@ sealed class SetupWindow : Window
         summary.VerticalAlignment = VerticalAlignment.Center;
         summary.Margin = new Thickness(0, 0, 16, 0);
         var actions = new StackPanel { Orientation = Orientation.Horizontal };
-        actions.Children.Add(open);
         actions.Children.Add(cancel);
         actions.Children.Add(refresh);
         actions.Children.Add(install);
@@ -154,7 +181,6 @@ sealed class SetupWindow : Window
         panel.Children.Add(footer);
         Design.Apply(this, "A better SQL workspace", panel, "SqlPilot " + InstalledVersions.Current + " · " + ProductInfo.Author + " · Completion and SQL Library");
         install.Click += async (_, __) => { if ((string)install.Content == "Done") Close(); else await InstallSelected(); };
-        open.Click += (_, __) => ShowLaunchMenu();
         cancel.Click += (_, __) => { foreach (var job in pending.Values) File.WriteAllText(job + ".cancel", "cancel"); cancel.IsEnabled = false; summary.Text = "Cancellation requested for updates still waiting for SSMS."; };
         monitor.Tick += (_, __) => CheckPending();
         refresh.Click += async (_, __) => await Scan();
@@ -204,7 +230,7 @@ sealed class SetupWindow : Window
             result.Foreground = Design.Ink;
             foreach (var host in found)
             {
-                var choice = new HostChoice(host);
+                var choice = new HostChoice(host) { CanOpen = ready.Any(h => h.Ide.Equals(host.Ide, StringComparison.OrdinalIgnoreCase)) };
                 if (selected != null)
                     choice.Selected = selected.Contains(host.Ide);
                 hosts.Add(choice);
@@ -220,7 +246,7 @@ sealed class SetupWindow : Window
         ClearAttention();
         grid.CommitEdit(DataGridEditingUnit.Cell, true);
         grid.CommitEdit(DataGridEditingUnit.Row, true);
-        var selected = hosts.Where(h => h.Selected).ToList();
+        var selected = hosts.Where(h => h.Selected && h.CanSelect).ToList();
         if (selected.Count == 0)
         {
             summary.Text = "Select an SSMS version to continue.";
@@ -265,6 +291,7 @@ sealed class SetupWindow : Window
         {
             foreach (var item in selected)
             {
+                item.CanOpen = false;
                 item.Result = "Installing…";
                 result.Text = "Installing SqlPilot on " + item.Name + "…";
                 try
@@ -274,6 +301,8 @@ sealed class SetupWindow : Window
                         result.Text = "Preparing update for " + item.Name + "…";
                         await Task.Run(() => engine.Prepare(item.Host));
                         pending[item] = DeferredInstall.Queue(item.Host, allowDowngrade);
+                        item.CanSelect = false;
+                        item.CanOpen = false;
                         item.Result = "Prepared · restart required";
                         monitor.Start();
                         cancel.Visibility = Visibility.Visible;
@@ -282,7 +311,8 @@ sealed class SetupWindow : Window
                     {
                         item.Result = await engine.Install(item.Host, Report, allowDowngrade);
                         ready.Add(item.Host);
-                        open.Visibility = Visibility.Visible;
+                        item.CanOpen = true;
+                        item.CanSelect = false;
                         item.RefreshVersion();
                     }
                     succeeded++;
@@ -291,42 +321,31 @@ sealed class SetupWindow : Window
                 catch (Exception ex) { item.Result = "Failed"; Report(item.Name + ": " + ex.Message); }
             }
             result.Text = succeeded == selected.Count ? (pending.Count > 0 ? "Updates prepared · restart required" : "Installation complete") : succeeded == 0 ? "Installation failed" : "Installation completed with issues";
-            guidance.Text = pending.Count > 0 ? "Save your queries and close SSMS normally. Setup will apply the update in the background; wait for completion before reopening. Keep Windows running until it finishes." : succeeded > 0 ? "Use Open SSMS below, then open a SQL query tab and the SqlPilot menu." : "Review the installation details below, then retry.";
+            guidance.Text = pending.Count > 0 ? "Save your queries and close SSMS normally. Setup will apply the update in the background; wait for completion before reopening. Keep Windows running until it finishes." : succeeded > 0 ? "Use Open SSMS in the corresponding row, then open a SQL query tab and the SqlPilot menu." : "Review the installation details below, then retry.";
             result.Foreground = succeeded == selected.Count ? new SolidColorBrush(Color.FromRgb(20, 107, 78)) : new SolidColorBrush(Color.FromRgb(153, 61, 26));
-            summary.Text = $"Accepted {succeeded} of {selected.Count} selected version(s). " + (pending.Count > 0 ? "Background setup is waiting for SSMS to close." : succeeded > 0 ? "Installation complete. Open SSMS below." : "Open Installation details and try again.");
+            summary.Text = $"Accepted {succeeded} of {selected.Count} selected version(s). " + (pending.Count > 0 ? "Background setup is waiting for SSMS to close." : succeeded > 0 ? "Installation complete. Open SSMS from its row." : "Open Installation details and try again.");
             Report(summary.Text);
             install.Content = pending.Count > 0 || succeeded == selected.Count ? "Done" : "Retry selected versions";
             if (succeeded == selected.Count)
                 install.IsDefault = true;
         }
-        finally { busy = false; install.IsEnabled = true; refresh.IsEnabled = pending.Count == 0; grid.IsEnabled = succeeded != selected.Count && pending.Count == 0; progress.Visibility = Visibility.Collapsed; }
+        finally { busy = false; install.IsEnabled = true; refresh.IsEnabled = pending.Count == 0; grid.IsEnabled = true; progress.Visibility = Visibility.Collapsed; }
     }
-    void ShowLaunchMenu()
+    void Launch(Host host)
     {
-        var menu = new ContextMenu();
-        foreach (var host in ready.Distinct())
+        try
         {
-            var item = new MenuItem { Header = host.Name };
-            item.Click += (_, __) =>
+            if (Detection.Running(host))
             {
-                try
-                {
-                    if (Detection.Running(host))
-                    {
-                        summary.Text = host.Name + " is already open.";
-                        return;
-                    }
-                    // Existing Explorer handles this request instead of inheriting setup's elevated token.
-                    var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe")) { UseShellExecute = false, CreateNoWindow = true };
-                    start.ArgumentList.Add(host.Executable);
-                    using var process = Process.Start(start) ?? throw new Exception("Windows shell could not start SSMS.");
-                }
-                catch (Exception ex) { Attention("Could not open SSMS: " + ex.Message); }
-            };
-            menu.Items.Add(item);
+                summary.Text = host.Name + " is already open.";
+                return;
+            }
+            // Existing Explorer handles this request instead of inheriting setup's elevated token.
+            var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe")) { UseShellExecute = false, CreateNoWindow = true };
+            start.ArgumentList.Add(host.Executable);
+            using var process = Process.Start(start) ?? throw new Exception("Windows shell could not start SSMS.");
         }
-        menu.PlacementTarget = open;
-        menu.IsOpen = true;
+        catch (Exception ex) { Attention("Could not open SSMS: " + ex.Message); }
     }
     void CheckPending()
     {
@@ -348,8 +367,9 @@ sealed class SetupWindow : Window
                 ready.Add(entry.Key.Host);
                 InstalledVersions.Refresh(entry.Key.Host);
                 entry.Key.RefreshVersion();
-                open.Visibility = Visibility.Visible;
+                entry.Key.CanOpen = true;
             }
+            entry.Key.CanSelect = !status.Success;
             pending.Remove(entry.Key);
         }
         if (pending.Count > 0)
@@ -362,19 +382,28 @@ sealed class SetupWindow : Window
         summary.Text = "Background updates finished. See each version's status.";
     }
 
+    static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            yield return child;
+            foreach (var nested in Descendants(child))
+                yield return nested;
+        }
+    }
     internal static int Checks(string? preview)
     {
         var window = new SetupWindow(Array.Empty<string>());
-        if (window.open.Visibility != Visibility.Collapsed || window.cancel.Visibility != Visibility.Collapsed)
+        if (window.cancel.Visibility != Visibility.Collapsed || new HostChoice(new Host()).CanOpen)
             throw new Exception("Setup actions visible before installation.");
         int passed = 1;
         window.result.Text = "Installation complete";
-        window.guidance.Text = "Use Open SSMS below, then open a SQL query tab and the SqlPilot menu.";
+        window.guidance.Text = "Use Open SSMS in the corresponding row, then open a SQL query tab and the SqlPilot menu.";
         window.summary.Text = "Installed on 2 selected versions.";
-        window.open.Visibility = Visibility.Visible;
         window.install.Content = "Done";
         foreach (int major in new[] { 20, 22 })
-            window.hosts.Add(new HostChoice(new Host { Name = "SSMS " + major, Ide = @"C:\Example\SSMS" + major, Major = major, InstalledCopies = new() { new InstalledCopy { Folder = @"C:\Example\Extension", Version = InstalledVersions.Current, AllUsers = true } } }) { Selected = true, Result = "Installed · ready to open" });
+            window.hosts.Add(new HostChoice(new Host { Name = "SSMS " + major, Ide = @"C:\Example\SSMS" + major, Major = major, InstalledCopies = new() { new InstalledCopy { Folder = @"C:\Example\Extension", Version = InstalledVersions.Current, AllUsers = true } } }) { Selected = true, CanOpen = major == 20, CanSelect = false, Result = major == 20 ? "Installed · ready to open" : "Prepared · restart required" });
         var root = (FrameworkElement)window.Content;
         window.Content = null;
         root.Resources = window.Resources;
@@ -385,8 +414,23 @@ sealed class SetupWindow : Window
         surface.Measure(new Size(960, 700));
         surface.Arrange(new Rect(0, 0, 960, 700));
         surface.UpdateLayout();
-        if (window.open.ActualWidth < 50 || window.install.ActualWidth < 40)
+        var launchButtons = Descendants(surface).OfType<Button>().Where(b => Equals(b.Content, "Open SSMS")).ToList();
+        if (launchButtons.Count != 2 || !launchButtons[0].IsEnabled || launchButtons[1].IsEnabled || launchButtons.Any(b => b.ActualWidth < 70) || window.install.ActualWidth < 40)
             throw new Exception("Completion actions have no visible layout.");
+        passed++;
+        window.hosts[1].CanOpen = true;
+        surface.UpdateLayout();
+        if (!launchButtons[1].IsEnabled)
+            throw new Exception("Completed background row did not enable Open SSMS.");
+        passed++;
+        window.hosts[1].Result = "Installed · ready to open";
+        surface.UpdateLayout();
+        foreach (var button in launchButtons)
+        {
+            var label = new FormattedText((string)button.Content, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface(button.FontFamily, button.FontStyle, button.FontWeight, button.FontStretch), button.FontSize, button.Foreground, 1);
+            if (button.ActualWidth < label.WidthIncludingTrailingWhitespace + button.Padding.Left + button.Padding.Right + 2)
+                throw new Exception("Open SSMS label is clipped.");
+        }
         passed++;
         if (preview != null)
         {

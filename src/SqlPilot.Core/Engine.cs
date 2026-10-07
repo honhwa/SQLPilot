@@ -45,6 +45,11 @@ namespace SqlPilot.Core
             get; set;
         }
         public List<string> Columns { get; set; } = new List<string>();
+        // Null means writable-column metadata is unavailable; never guess INSERT columns.
+        public List<string> InsertColumns
+        {
+            get; set;
+        }
         public List<ForeignKey> ForeignKeys { get; set; } = new List<ForeignKey>();
         public List<ProcedureArgument> Parameters { get; set; } = new List<ProcedureArgument>();
         public string Qualified => Quote(Schema) + "." + Quote(Name);
@@ -423,6 +428,8 @@ namespace SqlPilot.Core
                         item.Detail = obj.Schema + " · " + item.Category;
                         if (Procedure(obj) && (last == "EXEC" || last == "EXECUTE" || tokens.Count == 0 || qualifier.Success && clause == "EXEC" || qualifier.Success && clause == "EXECUTE"))
                             ProcedureCall(item, obj, last == "EXEC" || last == "EXECUTE" || clause == "EXEC" || clause == "EXECUTE", qualifier.Success);
+                        if (relations && clause == "INTO" && tokens.Any(t => t.Text.Equals("INSERT", StringComparison.OrdinalIgnoreCase)))
+                            InsertBody(item, obj, sql.Substring(caret));
                         // SQL Server does not accept an AS alias after INSERT INTO / UPDATE targets.
                         if (options.TableAliases && relations && new[] { "FROM", "JOIN", "APPLY" }.Contains(clause) &&
                             !(ContextTokens(sql.Substring(caret)).FirstOrDefault()?.TokenType == TSqlTokenType.Identifier) &&

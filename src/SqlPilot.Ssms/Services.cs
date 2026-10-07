@@ -123,7 +123,10 @@ namespace SqlPilot.Ssms
                 using (var command = connection.CreateCommand())
                 {
                     command.CommandTimeout = 15;
-                    command.CommandText = @"SELECT o.object_id, s.name, o.name, o.type_desc, c.name
+                    command.CommandText = @"SELECT o.object_id, s.name, o.name, o.type_desc, c.name,
+CASE WHEN c.is_identity=0 AND c.is_computed=0 AND c.system_type_id<>189
+    AND ISNULL(CONVERT(int, COLUMNPROPERTY(o.object_id,c.name,'GeneratedAlwaysType')),0)=0
+    AND ISNULL(CONVERT(int, COLUMNPROPERTY(o.object_id,c.name,'IsHidden')),0)=0 THEN 1 ELSE 0 END
 FROM sys.objects AS o
 INNER JOIN sys.schemas AS s ON s.schema_id=o.schema_id
 LEFT JOIN sys.columns AS c ON c.object_id=o.object_id
@@ -134,9 +137,13 @@ ORDER BY o.object_id, c.column_id;";
                         {
                             int id = reader.GetInt32(0);
                             if (!objects.TryGetValue(id, out var obj))
-                                objects[id] = obj = new DbObject { Schema = reader.GetString(1), Name = reader.GetString(2), Kind = reader.GetString(3) };
+                                objects[id] = obj = new DbObject { Schema = reader.GetString(1), Name = reader.GetString(2), Kind = reader.GetString(3), InsertColumns = new[] { "USER_TABLE", "VIEW" }.Contains(reader.GetString(3)) ? new List<string>() : null };
                             if (!reader.IsDBNull(4))
+                            {
                                 obj.Columns.Add(reader.GetString(4));
+                                if (reader.GetInt32(5) == 1 && obj.InsertColumns != null)
+                                    obj.InsertColumns.Add(reader.GetString(4));
+                            }
                         }
                 }
                 using (var command = connection.CreateCommand())
