@@ -126,10 +126,17 @@ namespace SqlPilot.Ssms
                     command.CommandText = @"SELECT o.object_id, s.name, o.name, o.type_desc, c.name,
 CASE WHEN c.is_identity=0 AND c.is_computed=0 AND c.system_type_id<>189
     AND ISNULL(CONVERT(int, COLUMNPROPERTY(o.object_id,c.name,'GeneratedAlwaysType')),0)=0
-    AND ISNULL(CONVERT(int, COLUMNPROPERTY(o.object_id,c.name,'IsHidden')),0)=0 THEN 1 ELSE 0 END
+    AND ISNULL(CONVERT(int, COLUMNPROPERTY(o.object_id,c.name,'IsHidden')),0)=0 THEN 1 ELSE 0 END,
+t.name, ts.name, t.is_user_defined, c.max_length, c.precision, c.scale, c.is_nullable, dc.definition,
+CASE WHEN c.default_object_id<>0 OR t.default_object_id<>0 THEN 1 ELSE 0 END,
+CASE WHEN t.is_assembly_type=1 THEN t.name ELSE COALESCE(bt.name,t.name) END
 FROM sys.objects AS o
 INNER JOIN sys.schemas AS s ON s.schema_id=o.schema_id
 LEFT JOIN sys.columns AS c ON c.object_id=o.object_id
+LEFT JOIN sys.types AS t ON t.user_type_id=c.user_type_id
+LEFT JOIN sys.schemas AS ts ON ts.schema_id=t.schema_id
+LEFT JOIN sys.types AS bt ON bt.user_type_id=c.system_type_id AND bt.system_type_id=c.system_type_id
+LEFT JOIN sys.default_constraints AS dc ON dc.object_id=c.default_object_id
 WHERE o.is_ms_shipped=0 AND o.type IN ('U','V','P','PC','FN','IF','TF','SN')
 ORDER BY o.object_id, c.column_id;";
                     using (var reader = await command.ExecuteReaderAsync(token).ConfigureAwait(false))
@@ -137,12 +144,20 @@ ORDER BY o.object_id, c.column_id;";
                         {
                             int id = reader.GetInt32(0);
                             if (!objects.TryGetValue(id, out var obj))
-                                objects[id] = obj = new DbObject { Schema = reader.GetString(1), Name = reader.GetString(2), Kind = reader.GetString(3), InsertColumns = new[] { "USER_TABLE", "VIEW" }.Contains(reader.GetString(3)) ? new List<string>() : null };
+                                objects[id] = obj = new DbObject { Schema = reader.GetString(1), Name = reader.GetString(2), Kind = reader.GetString(3), InsertColumns = new[] { "USER_TABLE", "VIEW" }.Contains(reader.GetString(3)) ? new List<InsertColumn>() : null };
                             if (!reader.IsDBNull(4))
                             {
                                 obj.Columns.Add(reader.GetString(4));
                                 if (reader.GetInt32(5) == 1 && obj.InsertColumns != null)
-                                    obj.InsertColumns.Add(reader.GetString(4));
+                                    obj.InsertColumns.Add(new InsertColumn
+                                    {
+                                        Name = reader.GetString(4),
+                                        Type = Engine.ColumnType(reader.GetString(6), reader.GetString(7), reader.GetBoolean(8), reader.GetInt16(9), reader.GetByte(10), reader.GetByte(11)),
+                                        BaseType = reader.GetString(15),
+                                        Nullable = reader.GetBoolean(12),
+                                        DefaultExpression = reader.IsDBNull(13) ? null : reader.GetString(13),
+                                        HasDefault = reader.GetInt32(14) == 1
+                                    });
                             }
                         }
                 }

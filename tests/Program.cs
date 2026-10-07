@@ -385,7 +385,7 @@ Check(Engine.AcceptedText("[Id]", ",") == "[Id]" && Engine.AcceptedText("dbo.") 
 orders.ForeignKeys[0].IsDisabled = true;
 Check(Fk("SELECT * FROM dbo.Orders o JOIN sales.Customers c ON ").Any(c => c.Category == "FK Join" && c.Detail.Contains("disabled")), "disabled but declared relationship stays visible with its disabled status");
 orders.ForeignKeys[0].IsDisabled = false;
-var insertTable = new DbObject { Schema = "sales", Name = "Customers", Kind = "USER_TABLE", Columns = new List<string> { "Id", "Name", "Age", "Calculated", "Stamp" }, InsertColumns = new List<string> { "Name", "Age" } };
+var insertTable = new DbObject { Schema = "sales", Name = "Customers", Kind = "USER_TABLE", Columns = new List<string> { "Id", "Name", "Age", "Calculated", "Stamp" }, InsertColumns = new List<InsertColumn> { new InsertColumn { Name = "Name", Type = "nvarchar(100)", BaseType = "nvarchar" }, new InsertColumn { Name = "Age", Type = "int", BaseType = "int" } } };
 Candidate InsertAt(string sql, int? caret = null, bool brackets = true) => Engine.Complete(sql, caret ?? sql.Length, new[] { insertTable }, true, new CompletionOptions { UseBrackets = brackets, TableAliases = true }).Single(c => c.Label == "Customers");
 var insertBody = InsertAt("INSERT INTO Cus");
 Check(insertBody.Insert.StartsWith("[sales].[Customers]\n("), "INSERT target generates column body without alias");
@@ -403,11 +403,49 @@ var terminated = InsertAt("INSERT INTO Cus;", "INSERT INTO Cus".Length);
 Check(!terminated.Insert.EndsWith(";") && !Engine.Analyze("INSERT INTO " + terminated.Insert + ";").Any(i => i.Code == "SYNTAX"), "INSERT reuses existing semicolon");
 Check(InsertAt("SELECT * INTO Cus").Insert == "[sales].[Customers]", "SELECT INTO never generates INSERT body");
 Check(InsertAt("UPDATE Cus").Insert == "[sales].[Customers]", "UPDATE never generates INSERT body");
-insertTable.InsertColumns = new List<string>();
+insertTable.InsertColumns = new List<InsertColumn>();
 Check(InsertAt("INSERT INTO Cus").Insert == "[sales].[Customers]\nDEFAULT VALUES;", "No writable columns uses DEFAULT VALUES");
 insertTable.InsertColumns = null;
 Check(InsertAt("INSERT INTO Cus").Insert == "[sales].[Customers]", "Unknown writable metadata never guesses INSERT body");
-insertTable.InsertColumns = new List<string> { "x] /* comment */", "select" };
+insertTable.InsertColumns = new List<InsertColumn> { new InsertColumn { Name = "x] /* comment */", Type = "nvarchar(max)", BaseType = "nvarchar" }, new InsertColumn { Name = "select", Type = "int", BaseType = "int" } };
 var escapedInsert = InsertAt("INSERT INTO Cus", brackets: false);
 Check(!Engine.Analyze("INSERT INTO " + escapedInsert.Insert).Any(i => i.Code == "SYNTAX") && escapedInsert.Placeholders.All(p => escapedInsert.Insert.Substring(p.Offset, p.Length) == "NULL"), "Unusual INSERT identifiers preserve quoting and valid comments");
+Check(insertBody.Insert.Contains("/* Name · nvarchar(100) NULL */") && insertBody.Insert.Contains("/* Age · int NULL */"), "INSERT comments include declared type and nullability");
+Check(Engine.ColumnType("nvarchar", "sys", false, 200, 0, 0) == "nvarchar(100)" && Engine.ColumnType("nchar", "sys", false, 20, 0, 0) == "nchar(10)", "Unicode column type lengths count characters");
+Check(Engine.ColumnType("varchar", "sys", false, -1, 0, 0) == "varchar(max)" && Engine.ColumnType("varbinary", "sys", false, 32, 0, 0) == "varbinary(32)", "Column type preserves MAX and binary lengths");
+Check(Engine.ColumnType("decimal", "sys", false, 9, 18, 4) == "decimal(18,4)" && Engine.ColumnType("numeric", "sys", false, 9, 12, 2) == "numeric(12,2)", "Column type preserves decimal precision and scale");
+Check(Engine.ColumnType("datetime2", "sys", false, 8, 27, 7) == "datetime2(7)" && Engine.ColumnType("time", "sys", false, 5, 16, 5) == "time(5)" && Engine.ColumnType("float", "sys", false, 8, 53, 0) == "float(53)", "Column type preserves temporal scale and float precision");
+Check(Engine.ColumnType("MoneyType", "a]b", true, 9, 18, 2) == "[a]]b].[MoneyType]", "User-defined column type preserves schema and escaping");
+foreach (var pair in new[] {
+    ("int", "0"), ("bit", "0"), ("bigint", "0"), ("tinyint", "0"), ("smallint", "0"),
+    ("decimal", "0"), ("numeric", "0"), ("float", "0"), ("real", "0"), ("money", "0"), ("smallmoney", "0"), ("sql_variant", "0"),
+    ("nvarchar", "N''"), ("nchar", "N''"), ("ntext", "N''"), ("varchar", "''"), ("char", "''"), ("text", "''"),
+    ("binary", "0x"), ("varbinary", "0x"), ("image", "0x"),
+    ("date", "'19000101'"), ("datetime", "'19000101'"), ("smalldatetime", "'19000101'"), ("datetime2", "'19000101'"),
+    ("time", "'00:00:00'"), ("datetimeoffset", "'1900-01-01T00:00:00+00:00'"),
+    ("uniqueidentifier", "'00000000-0000-0000-0000-000000000000'"), ("xml", "N'<root />'"),
+    ("geography", "geography::Point(0, 0, 4326)"), ("geometry", "geometry::Point(0, 0, 0)"), ("hierarchyid", "hierarchyid::GetRoot()") })
+{
+    insertTable.InsertColumns = new List<InsertColumn> { new InsertColumn { Name = "Required", Type = pair.Item1, BaseType = pair.Item1.ToUpperInvariant(), Nullable = false } };
+    var template = InsertAt("INSERT INTO Cus");
+    var stop = template.Placeholders.Single();
+    Check(template.Insert.Substring(stop.Offset, stop.Length) == pair.Item2 && template.Insert.Contains(" NOT NULL */") && !Engine.Analyze("INSERT INTO " + template.Insert).Any(i => i.Code == "SYNTAX"), "Required INSERT initial value: " + pair.Item1);
+}
+insertTable.InsertColumns = new List<InsertColumn> {
+    new InsertColumn { Name = "Count", Type = "int", BaseType = "int", Nullable = false, HasDefault = true, DefaultExpression = "((42))" },
+    new InsertColumn { Name = "Title", Type = "nvarchar(100)", BaseType = "nvarchar", HasDefault = true, DefaultExpression = "(N'سلام')" },
+    new InsertColumn { Name = "Created", Type = "datetime2(7)", BaseType = "datetime2", Nullable = false, HasDefault = true, DefaultExpression = "(getdate())" },
+    new InsertColumn { Name = "LegacyDefault", Type = "int", BaseType = "int", Nullable = false, HasDefault = true },
+    new InsertColumn { Name = "Optional", Type = "int", BaseType = "int", Nullable = true },
+    new InsertColumn { Name = "Alias", Type = "[dbo].[MoneyType]", BaseType = "decimal", Nullable = false }
+};
+var defaultTemplate = InsertAt("INSERT INTO Cus");
+Check(defaultTemplate.Placeholders.Select(p => defaultTemplate.Insert.Substring(p.Offset, p.Length)).SequenceEqual(new[] { "((42))", "(N'سلام')", "(getdate())", "DEFAULT", "NULL", "0" }), "INSERT defaults outrank nullability and type initial values, including bound defaults");
+Check(!Engine.Analyze("INSERT INTO " + defaultTemplate.Insert).Any(i => i.Code == "SYNTAX"), "Mixed INSERT default expressions remain valid SQL");
+Check(defaultTemplate.Insert.Contains("/* Alias · [dbo].[MoneyType] NOT NULL */"), "Alias type is displayed while underlying type supplies initial value");
+var bareDefaults = InsertAt("INSERT INTO Cus", brackets: false);
+Check(bareDefaults.Placeholders.Select(p => bareDefaults.Insert.Substring(p.Offset, p.Length)).SequenceEqual(defaultTemplate.Placeholders.Select(p => defaultTemplate.Insert.Substring(p.Offset, p.Length))), "Variable-length INSERT placeholders survive bracket removal");
+insertTable.InsertColumns = new List<InsertColumn> { new InsertColumn { Name = "Custom", Type = "[dbo].[ClrType]", BaseType = "ClrType", Nullable = false } };
+var unknownRequired = InsertAt("INSERT INTO Cus");
+Check(unknownRequired.Insert.Contains("@required_value") && unknownRequired.Insert.Contains("enter a required value") && !unknownRequired.Insert.Contains("NULL,"), "Unknown required CLR type requests an editable value instead of NULL");
 Console.WriteLine($"{checks} checks passed.");

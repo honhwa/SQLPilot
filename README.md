@@ -27,7 +27,7 @@ Setup detects local SSMS installations and builds an adapter against their edito
 
 - Contextual tables, views, columns, procedures, functions and SQL keyword suggestions; flexible initials/substring matching, subtle matched-character highlighting and schema provenance.
 - Alias-aware completion and procedure parameter placeholders. Tab and Shift+Tab move through inserted parameters.
-- Accept a table after `INSERT INTO` to generate writable columns and a multiline `VALUES` template. Tab moves between values; existing INSERT continuations are preserved.
+- Accept a table after `INSERT INTO` to generate writable columns and a multiline `VALUES` template with column types in comments. Declared defaults take priority; nullable columns use `NULL`, and required columns use editable type-based initial values. Tab moves between values; existing INSERT continuations are preserved.
 - JOIN targets ranked by declared foreign keys; ON conditions include composite and reverse relationships. Relations are never guessed solely from column names.
 - **Tab on a SELECT projection `*`** expands visible columns vertically. A small editor hint explains the action when expansion is available.
 - Editable Tab snippets, such as `ssf` → `SELECT * FROM`, and configurable keyboard shortcuts.

@@ -2,6 +2,16 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.6](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.6) — 2026-10-07
+
+- Include SQL column types, lengths/precision and nullability in INSERT value comments.
+- Populate INSERT values from declared default expressions, retaining functions and expressions for SQL Server to evaluate; use DEFAULT when a bound or hidden definition is unavailable.
+- Use NULL only for nullable columns without defaults; provide editable type-based initial values for required columns without defaults.
+- Resolve alias types to their underlying SQL type for initial values, preserve declared types in comments, and support spatial/hierarchy types.
+- Leave an explicit required-value placeholder for unfamiliar non-null CLR types instead of guessing a NULL value.
+- Preserve Tab navigation for values of different lengths and optional identifier quoting.
+- Add an isolated LocalDB metadata/execution fixture covering actual defaults, non-null values, alias types, spatial/hierarchy types and excluded generated columns.
+
 ## [0.13.5](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.5) — 2026-10-07
 
 - Move Open SSMS into each detected host row; enable it only after that host installs successfully, including background updates.

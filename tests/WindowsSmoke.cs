@@ -78,6 +78,44 @@ class WindowsSmoke
                 if (call.Placeholders.Count != 2 || call.Insert.Contains("@Note") || !call.Insert.Contains("@Id = NULL") || !call.Insert.Contains("@Total = @Total OUTPUT"))
                     throw new Exception("Procedure parameter expansion failed");
                 Console.WriteLine("PASS actual procedure parameter order types optional defaults and OUTPUT call expansion");
+                using (var db = new SqlConnection(b.ConnectionString))
+                {
+                    await db.OpenAsync();
+                    using (var command = db.CreateCommand())
+                    {
+                        command.CommandText = "CREATE TYPE dbo.SqlPilotMoney FROM decimal(12,2) NOT NULL;";
+                        await command.ExecuteNonQueryAsync();
+                        command.CommandText = "CREATE TABLE dbo.InsertFixture (Id int IDENTITY, RequiredText nvarchar(100) NOT NULL, Count int NOT NULL DEFAULT (7), Optional int NULL, Created datetime2(3) NOT NULL DEFAULT (sysdatetime()), Code uniqueidentifier NOT NULL, Amount dbo.SqlPilotMoney NOT NULL, Payload varbinary(8) NOT NULL, Position geography NOT NULL, Path hierarchyid NOT NULL, Derived AS Count+1, Stamp rowversion NOT NULL);";
+                        await command.ExecuteNonQueryAsync();
+                    }
+                    var insertCatalog = await SchemaReader.Scan(b.ConnectionString, CancellationToken.None);
+                    var target = insertCatalog.Single(o => o.Name == "InsertFixture");
+                    if (!target.InsertColumns.Select(c => c.Name).SequenceEqual(new[] { "RequiredText", "Count", "Optional", "Created", "Code", "Amount", "Payload", "Position", "Path" }))
+                        throw new Exception("Writable INSERT columns metadata failed");
+                    Console.WriteLine("PASS actual INSERT metadata excludes identity computed and rowversion columns");
+                    if (target.InsertColumns[0].Type != "nvarchar(100)" || target.InsertColumns[0].Nullable || target.InsertColumns[2].Nullable != true || target.InsertColumns[3].Type != "datetime2(3)" || target.InsertColumns[5].Type != "[dbo].[SqlPilotMoney]" || target.InsertColumns[5].BaseType != "decimal" || target.InsertColumns[7].BaseType != "geography" || target.InsertColumns[8].BaseType != "hierarchyid")
+                        throw new Exception("INSERT column types and nullability metadata failed");
+                    Console.WriteLine("PASS actual INSERT type length scale nullability alias and CLR metadata");
+                    if (!target.InsertColumns[1].HasDefault || !target.InsertColumns[1].DefaultExpression.Contains("7") || !target.InsertColumns[3].DefaultExpression.Contains("sysdatetime"))
+                        throw new Exception("INSERT declared defaults metadata failed");
+                    Console.WriteLine("PASS actual INSERT declared literal and function defaults");
+                    string input = "INSERT INTO InsertF";
+                    var completion = SqlPilot.Core.Engine.Complete(input, input.Length, insertCatalog).Single(c => c.Label == "InsertFixture");
+                    using (var command = db.CreateCommand())
+                    {
+                        // Only the newly created fixture database is used; never a user database.
+                        command.CommandText = "INSERT INTO " + completion.Insert;
+                        if (await command.ExecuteNonQueryAsync() != 1)
+                            throw new Exception("Generated fixture INSERT did not insert exactly one row");
+                        command.CommandText = "SELECT RequiredText, Count, Optional, Created, Code, Amount, DATALENGTH(Payload), Position.Lat, Path.ToString() FROM dbo.InsertFixture;";
+                        using (var reader = await command.ExecuteReaderAsync())
+                        {
+                            if (!await reader.ReadAsync() || reader.GetString(0) != "" || reader.GetInt32(1) != 7 || !reader.IsDBNull(2) || reader.IsDBNull(3) || reader.GetGuid(4) != Guid.Empty || reader.GetDecimal(5) != 0 || reader.GetInt32(6) != 0 || reader.GetDouble(7) != 0 || reader.GetString(8) != "/")
+                                throw new Exception("Generated INSERT fixture values failed");
+                        }
+                    }
+                    Console.WriteLine("PASS generated INSERT executes with defaults and required type values in isolated fixture");
+                }
                 b.InitialCatalog = "master";
                 var empty = await SchemaReader.Scan(b.ConnectionString, CancellationToken.None);
                 if (empty.Any(o => o.Name == "Orders"))
