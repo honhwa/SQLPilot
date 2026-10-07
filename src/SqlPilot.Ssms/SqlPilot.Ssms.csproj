@@ -7,6 +7,7 @@
     <EditorPath>$(HostIde)\CommonExtensions\Microsoft\Editor</EditorPath>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../Shared/BoundedLog.cs" Link="BoundedLog.cs" />
     <Compile Include="../Shared/Design.cs" Link="Design.cs" />
     <Compile Include="../Shared/ProductInfo.cs" Link="ProductInfo.cs" />
     <EmbeddedResource Include="../../assets/sqlpilot.png" LogicalName="SqlPilot.Icon.png" />

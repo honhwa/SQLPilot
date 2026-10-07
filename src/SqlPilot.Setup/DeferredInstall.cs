@@ -60,6 +60,7 @@ public static class DeferredInstall
     public static void Run(string[] args)
     {
         string report = args.SkipWhile(a => a != "--report").Skip(1).FirstOrDefault() ?? throw new ArgumentException("Missing background setup report.");
+        using var lease = File.Open(Path.Combine(Path.GetDirectoryName(report)!, ".active"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
         try
         {
             if (!Program.Elevated())
@@ -81,7 +82,7 @@ public static class DeferredInstall
                 WaitUntilClosed(() => Detection.Running(host), () => File.Exists(report + ".cancel"), TimeSpan.FromHours(24), TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
                 Write(report, new(false, false, "Applying update. Keep SSMS closed."));
                 InstalledVersions.Refresh(host);
-                var installer = new Installer();
+                using var installer = new Installer();
                 var messages = new List<string>();
                 string result = installer.Install(host, messages.Add, args.Contains("--allow-downgrade")).GetAwaiter().GetResult();
                 File.WriteAllLines(Path.Combine(Path.GetDirectoryName(report)!, "installation.log"), messages);

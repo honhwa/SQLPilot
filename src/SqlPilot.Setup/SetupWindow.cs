@@ -96,7 +96,7 @@ sealed class SetupWindow : Window
         FontFamily = new FontFamily("Segoe UI");
         FontSize = 13;
         Foreground = Design.Ink;
-        Icon = BitmapFrame.Create(new Uri(System.IO.Path.Combine(engine.Root, "assets", "sqlpilot.ico")));
+        Icon = BitmapFrame.Create(new Uri(System.IO.Path.Combine(engine.Root, "assets", "sqlpilot.ico")), BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
         var panel = new Grid();
         panel.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         panel.RowDefinitions.Add(new RowDefinition());
@@ -158,6 +158,7 @@ sealed class SetupWindow : Window
         cancel.Click += (_, __) => { foreach (var job in pending.Values) File.WriteAllText(job + ".cancel", "cancel"); cancel.IsEnabled = false; summary.Text = "Cancellation requested for updates still waiting for SSMS."; };
         monitor.Tick += (_, __) => CheckPending();
         refresh.Click += async (_, __) => await Scan();
+        Closed += (_, __) => { monitor.Stop(); engine.Dispose(); };
         Closing += (_, e) => { if (busy) e.Cancel = true; };
         Loaded += async (_, __) => { await Scan(); if (args.Contains("--install")) await InstallSelected(); };
     }
@@ -396,6 +397,7 @@ sealed class SetupWindow : Window
             using var file = File.Create(preview);
             encoder.Save(file);
         }
+        window.engine.Dispose();
         return passed;
     }
 

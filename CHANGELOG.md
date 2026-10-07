@@ -2,6 +2,18 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.4](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.4) — 2026-10-07
+
+- Dispose installer extraction directories after interactive, headless and self-test runs, including extraction failures.
+- Clean abandoned extraction jobs and completed/expired pending setup jobs in normal and Codex-redirected local storage.
+- Protect active setup jobs with file leases, reject links and paths outside managed installer folders, and preserve user settings, SQL Library, History and Sessions.
+- Retain limited recent rollback backups and installer logs, with a 128 MiB budget and seven-day retention for managed files.
+- Completed background worker EXEs are cleaned on a later setup run after Windows releases the executable.
+- Remove inactive SQLPilot native bundle extraction caches while preserving loaded/locked copies and other applications.
+- Explicitly release compiler metadata so generated/reference DLL files can be deleted immediately.
+- Rotate extension diagnostics with a 2 MiB file limit and one bounded previous copy; truncate oversized entries.
+- Add storage lifecycle, log rotation and user-data preservation checks.
+
 ## [0.13.3](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.3) — 2026-10-06
 
 - Shortened English and Persian READMEs; removed repeated version strings, fixed-version download/build examples and the outdated About screenshot.

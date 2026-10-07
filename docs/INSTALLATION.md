@@ -11,3 +11,11 @@ Setup reports existing copies and requests confirmation for a downgrade. Backups
 ## Windows publisher warning
 
 Check the asset's signing status in its release notes and compare the installer with `SHA256SUMS.txt`. Download only from official releases. Signing prerequisites and Microsoft Store constraints are documented in [SIGNING.md](SIGNING.md).
+
+## Installer disk usage
+
+Extraction files are removed when setup closes or a headless/self-test run ends. Later runs remove abandoned jobs and retired background worker copies from both normal local storage and Codex-redirected storage. Active jobs are protected by file leases. Managed rollback backups and logs have a 128 MiB budget and seven-day retention; unknown files are left intact. Settings, SQL Library, History and Sessions are preserved. Windows may keep a running worker EXE locked until exit; a later setup run removes its completed job.
+
+Extension diagnostics rotate at 2 MiB and keep one previous bounded copy. Existing oversized diagnostic logs are discarded on the next diagnostic write. User SQL files and encrypted sessions are excluded from these policies.
+
+Setup also removes inactive SQLPilot native bundle caches under the temporary `.net` folder. Loaded or locked copies and caches belonging to other applications are preserved.

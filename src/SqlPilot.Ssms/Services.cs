@@ -25,7 +25,7 @@ namespace SqlPilot.Ssms
             {
                 string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SqlPilot");
                 Directory.CreateDirectory(folder);
-                File.AppendAllText(Path.Combine(folder, "extension.log"), DateTime.UtcNow.ToString("O") + " [PID " + System.Diagnostics.Process.GetCurrentProcess().Id + "] " + message + Environment.NewLine);
+                BoundedLog.Append(Path.Combine(folder, "extension.log"), DateTime.UtcNow.ToString("O") + " [PID " + System.Diagnostics.Process.GetCurrentProcess().Id + "] " + message + Environment.NewLine);
             }
             catch { }
         }

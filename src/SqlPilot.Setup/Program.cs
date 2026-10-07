@@ -38,6 +38,8 @@ static class Program
     }
     static void Run(string[] args)
     {
+        SetupStorage.SkipBundleCache = args.Contains("--self-test") || args.Contains("--detect");
+        SetupStorage.Maintain();
         if (args.Contains("--deferred-install"))
         {
             DeferredInstall.Run(args);
@@ -50,7 +52,7 @@ static class Program
             var output = new Dictionary<string, object> { { "hosts", hosts }, { "version", InstalledVersions.Current } };
             if (args.Contains("--self-test"))
             {
-                var installer = new Installer();
+                using var installer = new Installer();
                 int passed = 0;
                 try
                 {
@@ -96,10 +98,17 @@ static class Program
                 if (Directory.EnumerateFiles(Path.Combine(installer.Root, "source"), "Codex*.cs").Any() || File.Exists(Path.Combine(installer.Root, "assets", "SqlPilot-CodexPlugin.zip")))
                     throw new Exception("Retired AI payload found");
                 passed++;
+                passed += StorageChecks.Run(installer.Root);
                 passed += DeferredInstall.Checks(installer.Root);
                 passed += SetupWindow.Checks(args.SkipWhile(a => a != "--preview").Skip(1).FirstOrDefault());
                 passed += VersionChecks.Run(installer.Root);
                 passed += CleanupChecks.Run(installer.Root);
+                string scratch = installer.Root;
+                installer.Dispose();
+                if (Directory.Exists(scratch))
+                    throw new Exception("Installer temporary files remained after disposal: " + scratch);
+                passed++;
+                output["temporaryFilesRemoved"] = true;
                 output["selfTestChecksPassed"] = passed;
                 output["installedByTest"] = false;
             }
@@ -119,7 +128,7 @@ static class Program
                 throw new Exception("No selected SSMS installation was found.");
             if (hosts.Any(Detection.Running))
                 throw new Exception("Close the selected SSMS instances before installing.");
-            var installer = new Installer();
+            using var installer = new Installer();
             var results = new List<object>();
             foreach (var host in hosts)
             {

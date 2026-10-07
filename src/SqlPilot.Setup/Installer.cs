@@ -11,31 +11,45 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
 namespace SqlPilot.Setup;
-public sealed class Installer
+public sealed class Installer : IDisposable
 {
     public string Root
     {
         get;
     }
     public string LogFolder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SqlPilot", "SetupLogs");
+    FileStream? lease;
     public Installer()
     {
+        SetupStorage.Maintain();
         Root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SqlPilot", "SetupWork", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
         Directory.CreateDirectory(LogFolder);
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("SqlPilot.Payload.zip") ?? throw new Exception("Installer payload missing.");
-        using var zip = new ZipArchive(stream);
-        foreach (var entry in zip.Entries)
+        lease = File.Open(Path.Combine(Root, ".active"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
+        try
         {
-            string path = SafePath(Root, entry.FullName);
-            if (entry.FullName.EndsWith('/'))
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("SqlPilot.Payload.zip") ?? throw new Exception("Installer payload missing.");
+            using var zip = new ZipArchive(stream);
+            foreach (var entry in zip.Entries)
             {
-                Directory.CreateDirectory(path);
-                continue;
+                string path = SafePath(Root, entry.FullName);
+                if (entry.FullName.EndsWith('/'))
+                {
+                    Directory.CreateDirectory(path);
+                    continue;
+                }
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                entry.ExtractToFile(path);
             }
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            entry.ExtractToFile(path);
         }
+        catch { Dispose(); throw; }
+    }
+    public void Dispose()
+    {
+        lease?.Dispose();
+        lease = null;
+        SetupStorage.DeleteJob(Path.GetDirectoryName(Path.GetDirectoryName(Root))!, Root, "SetupWork");
+        SetupStorage.Maintain();
     }
     public static string SafePath(string root, string relative)
     {
@@ -59,21 +73,22 @@ public sealed class Installer
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
             File.Copy(file, destination);
         }
-        var references = Directory.EnumerateFiles(Path.Combine(Root, "references"), "*.dll", SearchOption.AllDirectories).Where(IsManaged).Select(p => (MetadataReference)MetadataReference.CreateFromFile(p)).ToList();
+        using var images = new CompilerImages();
+        var references = Directory.EnumerateFiles(Path.Combine(Root, "references"), "*.dll", SearchOption.AllDirectories).Where(IsManaged).Select(p => (MetadataReference)images.Add(p)).ToList();
         foreach (var name in new[] { "CoreUtility", "Text.Data", "Text.Logic", "Text.UI", "Text.UI.Wpf", "Language.Intellisense", "Editor" })
         {
             string path = Path.Combine(editor, "Microsoft.VisualStudio." + name + ".dll");
             if (!File.Exists(path))
                 throw new Exception("Editor API missing: " + name);
-            references.Add(MetadataReference.CreateFromFile(path));
+            references.Add(images.Add(path));
         }
         foreach (var name in new[] { "stdole", "envdte", "Microsoft.VisualStudio.CommandBars", "Microsoft.VisualStudio.OLE.Interop", "Microsoft.VisualStudio.TextManager.Interop", "Microsoft.VisualStudio.Shell.15.0", "Microsoft.VisualStudio.Shell.Framework", "Microsoft.VisualStudio.Shell.Interop", "Microsoft.VisualStudio.Shell.Interop.8.0", "Microsoft.VisualStudio.Shell.Interop.10.0", "Microsoft.VisualStudio.Interop" })
         {
             var path = Path.Combine(host.Ide, "PublicAssemblies", name + ".dll");
             if (File.Exists(path))
-                references.Add(MetadataReference.CreateFromFile(path));
+                references.Add(images.Add(path));
         }
-        references.Add(MetadataReference.CreateFromFile(Path.Combine(package, "SqlPilot.Core.dll")));
+        references.Add(images.Add(Path.Combine(package, "SqlPilot.Core.dll")));
         var sources = Directory.EnumerateFiles(Path.Combine(Root, "source"), "*.cs").Select(p => CSharpSyntaxTree.ParseText(File.ReadAllText(p), new CSharpParseOptions(LanguageVersion.Latest), Path.GetFileName(p))).Concat(new[] { CSharpSyntaxTree.ParseText("[assembly: System.Reflection.AssemblyVersion(\"" + InstalledVersions.Current + ".0\")] [assembly: System.Reflection.AssemblyFileVersion(\"" + InstalledVersions.Current + ".0\")]") });
         var compilation = CSharpCompilation.Create("SqlPilot.Ssms", sources, references, new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Release, platform: Platform.AnyCpu));
         using (var output = File.Create(Path.Combine(package, "SqlPilot.Ssms.dll")))
@@ -290,6 +305,21 @@ public sealed class Installer
             string path = SafePath(destination, Path.GetRelativePath(source, file));
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             File.Copy(file, path, true);
+        }
+    }
+    sealed class CompilerImages : IDisposable
+    {
+        readonly List<AssemblyMetadata> images = new();
+        internal MetadataReference Add(string path)
+        {
+            var image = AssemblyMetadata.CreateFromFile(path);
+            images.Add(image);
+            return image.GetReference(filePath: path);
+        }
+        public void Dispose()
+        {
+            foreach (var image in images)
+                image.Dispose();
         }
     }
     static bool IsManaged(string path)

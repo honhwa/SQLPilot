@@ -5,6 +5,7 @@
     <UseWPF>true</UseWPF>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../src/Shared/BoundedLog.cs" Link="BoundedLog.cs" />
     <Compile Include="../../src/Shared/ProductInfo.cs" Link="ProductInfo.cs" />
     <Compile Include="../../src/SqlPilot.Ssms/AboutDialog.cs" Link="AboutDialog.cs" />
     <Compile Include="../../src/SqlPilot.Ssms/ExplorerLookup.cs" Link="ExplorerLookup.cs" />

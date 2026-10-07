@@ -59,6 +59,15 @@ class Program
         check(KeyboardShortcuts.MatchHeld(System.Windows.Input.ModifierKeys.Alt, k => k == System.Windows.Input.Key.Enter) == "QuickFixAlt", "Alt Enter maps to diagnostic actions");
         check(!KeyboardShortcuts.Defaults.Keys.Any(k => k.StartsWith("Codex")), "retired AI commands are not registered");
         check(KeyboardShortcuts.MatchHeld(System.Windows.Input.ModifierKeys.Control, k => k == System.Windows.Input.Key.Enter) == null, "Ctrl Enter is released to SSMS");
+        string diagnosticLog = Path.Combine(root, "extension.log");
+        for (int i = 0; i < 40; i++)
+            SqlPilot.BoundedLog.Append(diagnosticLog, new string('a', 12), 64);
+        check(new FileInfo(diagnosticLog).Length <= 64 && new FileInfo(diagnosticLog + ".1").Length <= 64, "diagnostic log and rotated copy stay bounded");
+        File.WriteAllText(diagnosticLog, new string('a', 1000));
+        SqlPilot.BoundedLog.Append(diagnosticLog, "fresh", 64);
+        check(new FileInfo(diagnosticLog).Length <= 64 && !File.Exists(diagnosticLog + ".1"), "oversized legacy diagnostic log is discarded");
+        SqlPilot.BoundedLog.Append(diagnosticLog, new string('ژ', 1000), 64);
+        check(new FileInfo(diagnosticLog).Length <= 64, "large Unicode diagnostic entry stays bounded");
         AboutChecks.Run(check);
         ExplorerChecks.Run(check);
         Console.WriteLine(n + " workspace checks passed.");
