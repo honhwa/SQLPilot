@@ -76,6 +76,78 @@ namespace SqlPilot.Core
                 }
             }
         }
+        // Match command tails before expression/source heuristics. A keyword fragment
+        // is removed by Complete, so "INSERT in" arrives here as "INSERT ".
+        static ContextDecision CommandTail(List<TSqlParserToken> tokens)
+        {
+            if (tokens.Count == 0)
+                return null;
+            var tail = tokens.Last();
+            if (tail.TokenType == TSqlTokenType.Identifier || tail.TokenType == TSqlTokenType.QuotedIdentifier)
+                return null;
+            string last = tail.Text.ToUpperInvariant();
+            string previous = tokens.Count > 1 ? tokens[tokens.Count - 2].Text.ToUpperInvariant() : "";
+            string clause = tokens.LastOrDefault(t => new[] { "SELECT", "FROM", "JOIN", "APPLY", "WHERE", "ON", "HAVING", "SET", "GROUP", "ORDER", "VALUES" }.Contains(t.Text.ToUpperInvariant()))?.Text.ToUpperInvariant();
+            bool source = new[] { "FROM", "JOIN", "APPLY" }.Contains(clause);
+            switch (last)
+            {
+                case "INSERT":
+                    return ContextWords("INTO");
+                case "DELETE":
+                    return ContextWords("FROM");
+                case "MERGE":
+                    return ContextWords("INTO");
+                case "OR":
+                    return previous == "CREATE" ? ContextWords("ALTER") : null;
+                case "TRUNCATE":
+                    return ContextWords("TABLE");
+                case "CREATE":
+                    return ContextWords("TABLE", "VIEW", "PROCEDURE", "FUNCTION", "INDEX", "SCHEMA", "DATABASE", "TRIGGER", "OR ALTER");
+                case "ALTER":
+                    return previous == "OR" ? ContextWords("VIEW", "PROCEDURE", "FUNCTION", "TRIGGER") : ContextWords("TABLE", "VIEW", "PROCEDURE", "FUNCTION", "INDEX", "SCHEMA", "DATABASE", "TRIGGER");
+                case "DROP":
+                    return ContextWords("TABLE", "VIEW", "PROCEDURE", "FUNCTION", "INDEX", "SCHEMA", "DATABASE", "TRIGGER");
+                case "UNION":
+                    return ContextWords("ALL", "SELECT");
+                case "INTERSECT":
+                case "EXCEPT":
+                    return ContextWords("SELECT");
+                case "ALL":
+                    return previous == "UNION" ? ContextWords("SELECT") : null;
+                case "INNER":
+                    return source ? ContextWords("JOIN") : null;
+                case "LEFT":
+                case "RIGHT":
+                case "FULL":
+                    return source ? ContextWords("JOIN", "OUTER JOIN") : null;
+                case "CROSS":
+                    return source ? ContextWords("JOIN", "APPLY") : null;
+                case "OUTER":
+                    return source ? (new[] { "LEFT", "RIGHT", "FULL" }.Contains(previous) ? ContextWords("JOIN") : ContextWords("APPLY")) : null;
+            }
+            // INSERT/DELETE TOP (n) can precede the target keyword. Keep the same
+            // command context while the optional header is being completed.
+            int command = tokens.FindLastIndex(t => t.TokenType == TSqlTokenType.Insert || t.TokenType == TSqlTokenType.Delete);
+            if (command >= 0 && command + 1 < tokens.Count && tokens[command + 1].Text.Equals("TOP", StringComparison.OrdinalIgnoreCase))
+            {
+                int open = command + 2, end = open, nesting = 0;
+                if (open < tokens.Count && tokens[open].Text == "(")
+                {
+                    for (; end < tokens.Count; end++)
+                    {
+                        if (tokens[end].Text == "(")
+                            nesting++;
+                        else if (tokens[end].Text == ")" && --nesting == 0)
+                            break;
+                    }
+                    bool completeHeader = end == tokens.Count - 1 || end == tokens.Count - 2 && last == "PERCENT";
+                    string expression = string.Join(" ", tokens.Skip(open + 1).Take(Math.Max(0, end - open - 1)).Select(t => t.Text));
+                    if (nesting == 0 && completeHeader && CompleteScalar(expression))
+                        return ContextWords(tokens[command].TokenType == TSqlTokenType.Insert ? "INTO" : "FROM");
+                }
+            }
+            return null;
+        }
         static ContextDecision DecideContext(string statement)
         {
             var raw = ContextTokens(statement);
@@ -90,6 +162,11 @@ namespace SqlPilot.Core
                 if (token.Text == ")")
                     depth = Math.Max(0, depth - 1);
             }
+            var commandTail = CommandTail(top);
+            if (commandTail == null && (raw.LastOrDefault()?.Text == ")" || raw.LastOrDefault()?.Text.Equals("PERCENT", StringComparison.OrdinalIgnoreCase) == true))
+                commandTail = CommandTail(raw);
+            if (commandTail != null)
+                return commandTail;
             int clause = top.FindLastIndex(t => new[] { "SELECT", "FROM", "JOIN", "APPLY", "WHERE", "ON", "HAVING", "SET", "GROUP", "ORDER", "VALUES", "EXEC", "EXECUTE", "INTO", "UPDATE" }.Contains(t.Text.ToUpperInvariant()));
             if (clause < 0)
                 return new ContextDecision();
@@ -211,6 +288,9 @@ namespace SqlPilot.Core
                     return ContextWords("AS", "FROM", ",");
                 if (new[] { "+", "-", "*", "/", "%", "(" }.Contains(last))
                     return ContextColumns("NULL", "CASE", "COUNT(*)", "SUM", "AVG", "MIN", "MAX");
+                // An unfinished SELECT expression still needs an operand/function,
+                // not unrelated statement keywords from the global fallback.
+                return ContextColumns("NULL", "CASE");
             }
             if (kind == "SET")
             {

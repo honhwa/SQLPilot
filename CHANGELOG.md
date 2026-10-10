@@ -2,6 +2,15 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.9](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.9) — 2026-10-10
+
+- Restrict INSERT keyword completion to INTO instead of global IN, column, function or snippet suggestions; keep the same behavior for typing, Space and Ctrl+Space.
+- Recognize command continuations for DELETE, MERGE, TRUNCATE, CREATE/ALTER/DROP, CREATE OR ALTER, JOIN modifiers and UNION/INTERSECT/EXCEPT.
+- Retain INSERT/DELETE TOP (expression) target-keyword completion and transition to table suggestions after INTO/FROM.
+- Keep predicate IN, scalar functions, quoted identifiers, comments, statement/batch boundaries and existing foreign-key/alias completion intact.
+- Keep unfinished SELECT expressions in column/function context instead of falling back to unrelated global commands.
+- Add regression checks covering keyword prefixes, automatic and explicit completion, command position, prefix-only matching and expression isolation.
+
 ## [0.13.8](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.8) — 2026-10-07
 
 - Check GitHub's latest stable release in the background after startup and every six hours; show an Update indicator on the SqlPilot toolbar when a newer version is available.

@@ -213,6 +213,46 @@ var noArgs = new DbObject { Schema = "dbo", Name = "NoArgs", Kind = "SQL_STORED_
 Check(Engine.Complete("EXEC No", 7, new[] { noArgs }).Single().Placeholders.Count == 0, "parameterless procedure adds no placeholders");
 var screenCatalog = new[] { new DbObject { Schema = "dbo", Name = "AiMessages", Kind = "USER_TABLE", Columns = new List<string> { "Id", "UserId", "Body" } }, new DbObject { Schema = "dbo", Name = "Users", Kind = "USER_TABLE", Columns = new List<string> { "Id", "Name" } } };
 List<Candidate> Suggestions(string sql, bool explicitRequest = false) => Engine.Complete(sql, sql.Length, screenCatalog, contextualOnly: !explicitRequest, options: new CompletionOptions { QualifyColumns = true });
+// Command fragments must be filtered within their grammar position, not the catalog.
+foreach (bool explicitRequest in new[] { false, true })
+{
+    foreach (string sql in new[] { "insert in", "INSERT i", "INSERT ", "INSERT\n/* target */ in", "SELECT 1; INSERT in", "SELECT 1\nGO\nINSERT in", "INSERT TOP (5) in", "DELETE TOP (5) fr" })
+    {
+        string expected = sql.StartsWith("DELETE", StringComparison.Ordinal) ? "FROM" : "INTO";
+        var rows = Engine.RequestCompletion(sql, sql.Length, screenCatalog, explicitRequest).Candidates;
+        Check(rows.Count == 1 && rows[0].Label == expected && rows[0].Category == "Keyword", "Command grammar: " + sql.Replace('\n', ' ') + " explicit=" + explicitRequest);
+    }
+}
+foreach (var pair in new[] {
+    Tuple.Create("DELETE fr", "FROM"), Tuple.Create("TRUNCATE ta", "TABLE"),
+    Tuple.Create("CREATE pr", "PROCEDURE"), Tuple.Create("ALTER pr", "PROCEDURE"), Tuple.Create("DROP ta", "TABLE"),
+    Tuple.Create("CREATE OR ALTER pr", "PROCEDURE"), Tuple.Create("CREATE OR al", "ALTER"), Tuple.Create("MERGE in", "INTO"),
+    Tuple.Create("SELECT * FROM dbo.Users LEFT j", "JOIN"),
+    Tuple.Create("SELECT * FROM dbo.Users LEFT OUTER j", "JOIN"),
+    Tuple.Create("SELECT * FROM dbo.Users INNER j", "JOIN"),
+    Tuple.Create("SELECT * FROM dbo.Users CROSS ap", "APPLY"),
+    Tuple.Create("SELECT * FROM dbo.Users OUTER ap", "APPLY"),
+    Tuple.Create("SELECT Id FROM dbo.Users UNION s", "SELECT"),
+    Tuple.Create("SELECT Id FROM dbo.Users UNION ALL s", "SELECT"),
+    Tuple.Create("SELECT Id FROM dbo.Users INTERSECT s", "SELECT"),
+    Tuple.Create("SELECT Id FROM dbo.Users EXCEPT s", "SELECT"),
+    Tuple.Create("SELECT * FROM dbo.Users ORDER b", "BY"),
+    Tuple.Create("SELECT * FROM dbo.Users GROUP b", "BY") })
+{
+    var rows = Engine.RequestCompletion(pair.Item1, pair.Item1.Length, screenCatalog, true).Candidates;
+    Check(rows.Any(c => c.Label == pair.Item2) && rows.All(c => c.Category == "Keyword"), "Context-only command continuation: " + pair.Item1);
+}
+foreach (string sql in new[] { "SELECT * FROM dbo.Users WHERE LEFT ", "SELECT LEFT ", "SELECT * FROM dbo.Users WHERE Id = LEFT(", "SELECT [LEFT] " })
+    Check(!Suggestions(sql, true).Any(c => c.Label == "JOIN" || c.Label == "OUTER JOIN"), "JOIN modifiers do not leak into scalar expressions: " + sql);
+foreach (string sql in new[] { "INSERT in", "INSERT i", "INSERT INTO Us" })
+    Check(Engine.Complete(sql, sql.Length, screenCatalog, options: new CompletionOptions { FuzzyMatching = false }).Count == 1, "Command filtering also works with prefix-only matching: " + sql);
+foreach (string sql in new[] { "INSERT TOP (5) INTO dbo.Users VALUES (1) ", "DELETE TOP (5) FROM dbo.Users WHERE Id IN (1,2) " })
+    Check(!Suggestions(sql, true).Any(c => c.Label == "INTO" || c.Label == "FROM"), "TOP header does not consume the later statement body: " + sql);
+Check(Suggestions("INSERT TOP (ABS(@n)) in", true).Single().Label == "INTO", "Nested TOP expression retains target-keyword context");
+Check(Suggestions("INSERT INTO Us", true).Single().Category == "Table", "INTO transitions to target tables");
+Check(Suggestions("SELECT * FROM dbo.Users WHERE Id in", true).Any(c => c.Label == "IN") && !Suggestions("SELECT * FROM dbo.Users WHERE Id in", true).Any(c => c.Label == "INTO"), "IN remains a predicate operator");
+Check(Suggestions("SELECT * FROM dbo.Users WHERE Id IN (", true).Any(c => c.Category == "Column"), "IN list still requests values");
+Check(Suggestions("INSERT /* unfinished in", true).Count == 0 && Suggestions("SELECT N'insert in", true).Count == 0, "Command completion preserves comment and literal boundaries");
 string crossScreen = "SELECT * FROM [dbo].[AiMessages] AS [am] CROSS JOIN [dbo].[Users] AS [u] ";
 Check(Suggestions(crossScreen).First().Label == "WHERE" && !Suggestions(crossScreen).Any(c => c.Label == "ON"), "screenshot CROSS JOIN offers legal continuations with WHERE first");
 string invalidScreen = crossScreen + "ON [am].[UserId] = [u].[Id] ";
