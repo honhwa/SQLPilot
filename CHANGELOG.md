@@ -2,6 +2,15 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.10](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.10) — 2026-10-18
+
+- Add Execute statement at cursor to SQL editing with configurable Ctrl+Enter; preserve normal F5 behavior.
+- Parse T-SQL statement boundaries instead of splitting on lines or semicolons; retain full CTEs, conditional blocks and module definitions.
+- Submit only the identified selection through SSMS using the query tab's existing connection; retain selection to show the executed boundary.
+- Skip blank/comment-only positions and malformed units without falling back to whole-script execution or extra dialogs.
+- Prevent native execution from recursively invoking held shortcuts; preserve existing user shortcut conflicts during migration.
+- Add statement-boundary and keyboard routing regression coverage.
+
 ## [0.13.9](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.9) — 2026-10-10
 
 - Restrict INSERT keyword completion to INTO instead of global IN, column, function or snippet suggestions; keep the same behavior for typing, Space and Ctrl+Space.

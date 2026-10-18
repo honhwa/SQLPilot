@@ -58,7 +58,15 @@ class Program
         check(KeyboardShortcuts.MatchHeld(System.Windows.Input.ModifierKeys.Control, k => k == System.Windows.Input.Key.OemPeriod) == "QuickFix", "shell punctuation shortcut matches normalized WPF key");
         check(KeyboardShortcuts.MatchHeld(System.Windows.Input.ModifierKeys.Alt, k => k == System.Windows.Input.Key.Enter) == "QuickFixAlt", "Alt Enter maps to diagnostic actions");
         check(!KeyboardShortcuts.Defaults.Keys.Any(k => k.StartsWith("Codex")), "retired AI commands are not registered");
-        check(KeyboardShortcuts.MatchHeld(System.Windows.Input.ModifierKeys.Control, k => k == System.Windows.Input.Key.Enter) == null, "Ctrl Enter is released to SSMS");
+        check(KeyboardShortcuts.MatchHeld(System.Windows.Input.ModifierKeys.Control, k => k == System.Windows.Input.Key.Enter) == "ExecuteStatement", "Ctrl Enter routes to current statement execution");
+        string keyboardFixture = Path.Combine(root, "keyboard.xml");
+        File.WriteAllText(keyboardFixture, "<KeyboardShortcuts><Binding Command='History' Gesture='Control+Return'/><Binding Command='Format' Gesture='Ctrl+Alt+F'/></KeyboardShortcuts>");
+        var migratedKeys = KeyboardShortcuts.Load(keyboardFixture);
+        check(migratedKeys["ExecuteStatement"] == "" && migratedKeys["History"] == "Control+Return" && migratedKeys["Format"] == "Ctrl+Alt+F", "Existing normalized Ctrl Enter binding wins without resetting other custom shortcuts");
+        File.WriteAllText(keyboardFixture, "<KeyboardShortcuts><Binding Command='ExecuteStatement' Gesture='Ctrl+Shift+E'/></KeyboardShortcuts>");
+        check(KeyboardShortcuts.Load(keyboardFixture)["ExecuteStatement"] == "Ctrl+Shift+E", "Explicit execution shortcut survives loading");
+        File.WriteAllText(keyboardFixture, "<KeyboardShortcuts><Binding Command='ExecuteStatement' Gesture=''/></KeyboardShortcuts>");
+        check(KeyboardShortcuts.Load(keyboardFixture)["ExecuteStatement"] == "", "Execution shortcut can be disabled persistently");
         string diagnosticLog = Path.Combine(root, "extension.log");
         for (int i = 0; i < 40; i++)
             SqlPilot.BoundedLog.Append(diagnosticLog, new string('a', 12), 64);

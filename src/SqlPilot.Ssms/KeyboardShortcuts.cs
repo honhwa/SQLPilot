@@ -26,17 +26,18 @@ namespace SqlPilot.Ssms
     {
         internal static readonly Dictionary<string, string> Defaults = new Dictionary<string, string>{
             {"QuickFixAlt","Alt+Enter"},{"QuickFix","Ctrl+."},{"Completion","Ctrl+Space"},{"Connect","Ctrl+Shift+C"},{"Refresh","Ctrl+Shift+R"},{"History","Ctrl+Shift+H"},{"Analyze","Ctrl+Shift+A"},{"Format","Ctrl+Shift+F"},{"Help","Ctrl+Shift+P"},{"Reference","F12"},{"Explorer","Ctrl+F12"},
-            {"Library","Ctrl+Shift+L"},{"SaveSql","Ctrl+Shift+S"},{"Snippets",""},{"Settings",""},{"Shortcuts",""},{"RestoreSession",""},{"Checkpoint",""}};
+            {"ExecuteStatement","Ctrl+Enter"},{"Library","Ctrl+Shift+L"},{"SaveSql","Ctrl+Shift+S"},{"Snippets",""},{"Settings",""},{"Shortcuts",""},{"RestoreSession",""},{"Checkpoint",""}};
         static readonly string PathName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SqlPilot", "keyboard.xml");
         static Dictionary<string, string> current = Load();
-        static Dictionary<string, string> Load()
+        internal static Dictionary<string, string> Load(string path = null)
         {
+            path = path ?? PathName;
             var values = new Dictionary<string, string>(Defaults);
             try
             {
-                bool explicitAlt = false;
-                if (File.Exists(PathName))
-                    foreach (var e in XElement.Load(PathName).Elements("Binding"))
+                bool explicitAlt = false, explicitExecute = false;
+                if (File.Exists(path))
+                    foreach (var e in XElement.Load(path).Elements("Binding"))
                     {
                         string command = (string)e.Attribute("Command");
                         if (values.ContainsKey(command))
@@ -44,17 +45,29 @@ namespace SqlPilot.Ssms
                             var gesture = (string)e.Attribute("Gesture") ?? "";
                             values[command] = gesture;
                         }
+                        if (command == "ExecuteStatement")
+                            explicitExecute = true;
                         if (command == "QuickFixAlt")
                             explicitAlt = true;
                     }
                 if (!explicitAlt && values.Any(v => v.Key != "QuickFixAlt" && string.Equals(v.Value, "Alt+Enter", StringComparison.OrdinalIgnoreCase)))
                     values["QuickFixAlt"] = "";
+                if (!explicitExecute && values.Any(v => v.Key != "ExecuteStatement" && SameGesture(v.Value, values["ExecuteStatement"])))
+                    values["ExecuteStatement"] = "";
                 Validate(values);
             }
             catch { values = new Dictionary<string, string>(Defaults); }
             return values;
         }
         internal static string Gesture(string command) => current.TryGetValue(command, out var g) ? g : "";
+        static bool SameGesture(string first, string second)
+        {
+            if (string.IsNullOrWhiteSpace(first) || string.IsNullOrWhiteSpace(second))
+                return false;
+            var a = Parse(first);
+            var b = Parse(second);
+            return a.Key == b.Key && a.Modifiers == b.Modifiers;
+        }
         static KeyGesture Parse(string gesture) => (KeyGesture)new KeyGestureConverter().ConvertFromInvariantString(gesture.EndsWith("+.", StringComparison.Ordinal) ? gesture.Substring(0, gesture.Length - 1) + "OemPeriod" : gesture);
         internal static void Validate(IDictionary<string, string> values)
         {

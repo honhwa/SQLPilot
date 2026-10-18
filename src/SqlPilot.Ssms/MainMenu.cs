@@ -70,6 +70,9 @@ namespace SqlPilot.Ssms
                 case "Completion":
                     active.CompletionCommand();
                     break;
+                case "ExecuteStatement":
+                    active.ExecuteStatement();
+                    break;
                 case "Format":
                     active.Format();
                     break;
@@ -110,6 +113,7 @@ namespace SqlPilot.Ssms
             menu.Items.Add(item("Show suggestions", "Completion"));
             menu.Items.Add(new Separator());
             var editing = new MenuItem { Header = "SQL editing" };
+            editing.Items.Add(item("Execute statement at cursor", "ExecuteStatement"));
             editing.Items.Add(item("Format SQL", "Format"));
             editing.Items.Add(item("Analyze and fix", "Analyze"));
             editing.Items.Add(item("Quick fixes at cursor", "QuickFixAlt"));

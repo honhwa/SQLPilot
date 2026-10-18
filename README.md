@@ -44,6 +44,7 @@ The toolbar uses one **SqlPilot** button with grouped actions. Completion, appea
 
 | Key | Action |
 | --- | --- |
+| Ctrl+Enter | Execute the statement at the cursor using the current query connection |
 | Ctrl+Space | Explicit completion, including revisited or mistyped identifiers |
 | Tab / Enter | Accept a suggestion |
 | Up / Down | Select a suggestion |
@@ -59,6 +60,8 @@ The toolbar uses one **SqlPilot** button with grouped actions. Completion, appea
 | Ctrl+Shift+S | Save SQL to Library |
 | F12 | Go to reference; procedures open as ALTER scripts |
 | Ctrl+F12 | Locate an object in the connected Object Explorer |
+
+Execution keeps CTEs, IF/ELSE and BEGIN/END blocks together. Blank lines and standalone comments do not execute anything. The statement replaces any existing selection and remains selected to show its boundary. F5 retains its normal SSMS behavior.
 
 Bindings can conflict with other SSMS extensions. Edit them under **SqlPilot → Keyboard shortcuts**. SqlPilot can suppress other completion providers while its completion is enabled and restore their prior state afterward.
 

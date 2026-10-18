@@ -507,4 +507,28 @@ Check(bareDefaults.Placeholders.Select(p => bareDefaults.Insert.Substring(p.Offs
 insertTable.InsertColumns = new List<InsertColumn> { new InsertColumn { Name = "Custom", Type = "[dbo].[ClrType]", BaseType = "ClrType", Nullable = false } };
 var unknownRequired = InsertAt("INSERT INTO Cus");
 Check(unknownRequired.Insert.Contains("@required_value") && unknownRequired.Insert.Contains("enter a required value") && !unknownRequired.Insert.Contains("NULL,"), "Unknown required CLR type requests an editable value instead of NULL");
+
+
+// Statement selection never splits inside literals, CTEs or guarded blocks.
+foreach (var pair in new[] {
+    Tuple.Create("SELECT 1;\nSELECT 2;", "SELECT 2;"),
+    Tuple.Create("SELECT 1\nSELECT 2", "SELECT 2"),
+    Tuple.Create("SELECT 1;\nGO\nSELECT 2;", "SELECT 2;"),
+    Tuple.Create("SELECT N'a;b'; SELECT 2;", "SELECT 2;"),
+    Tuple.Create("/* SELECT 0; */ SELECT 2; -- tail", "SELECT 2;"),
+    Tuple.Create("SELECT 1; WITH c AS (SELECT 2 AS n) SELECT n FROM c;", "WITH c AS (SELECT 2 AS n) SELECT n FROM c;"),
+    Tuple.Create("IF 1=0 BEGIN SELECT 2; END ELSE SELECT 3;", "IF 1=0 BEGIN SELECT 2; END ELSE SELECT 3;"),
+    Tuple.Create("BEGIN SELECT 2; SELECT 3; END;", "BEGIN SELECT 2; SELECT 3; END;"),
+    Tuple.Create("CREATE PROCEDURE dbo.p AS SELECT 2; SELECT 3;", "CREATE PROCEDURE dbo.p AS SELECT 2; SELECT 3;"),
+    Tuple.Create("SELECT * FROM (SELECT 2 AS n) x; SELECT 3;", "SELECT * FROM (SELECT 2 AS n) x;") })
+{
+    int caret = pair.Item1.IndexOf("2", StringComparison.Ordinal);
+    var unit = Engine.StatementAtCaret(pair.Item1, caret, out var why);
+    Check(unit != null && unit.Text == pair.Item2 && pair.Item1.Substring(unit.Start, unit.Length) == unit.Text && why == null, "Execution boundary: " + pair.Item1.Replace('\n', ' '));
+}
+foreach (string text in new[] { "", "-- SELECT 2;", "/* SELECT 2; */", "SELECT 1;\n\n", "GO\n", "SELECT FROM;" })
+    Check(Engine.StatementAtCaret(text, text.Length, out var reason) == null && !string.IsNullOrEmpty(reason), "No executable statement at blank/comment/invalid cursor: " + text.Replace('\n', ' '));
+Check(Engine.StatementAtCaret("SELECT 1;SELECT 2;", 9, out _)?.Text == "SELECT 2;", "Adjacent statements use the one starting at the cursor");
+Check(Engine.StatementAtCaret("SELECT 1;", 9, out _)?.Text == "SELECT 1;", "Trailing statement edge remains executable");
+Check(Engine.StatementAtCaret("SELECT 1;", -1, out _) == null && Engine.StatementAtCaret("SELECT 1;", 50, out _) == null, "Execution rejects out-of-range caret");
 Console.WriteLine($"{checks} checks passed.");

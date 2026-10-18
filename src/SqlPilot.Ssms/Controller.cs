@@ -776,6 +776,45 @@ namespace SqlPilot.Ssms
             }
             input.Clear();
         }
+        internal void ExecuteStatement()
+        {
+            try
+            {
+                var snapshot = view.TextBuffer.CurrentSnapshot;
+                var statement = Engine.StatementAtCaret(snapshot.GetText(), view.Caret.Position.BufferPosition.Position, out var reason);
+                if (statement == null)
+                {
+                    Notifications.Show(reason);
+                    return;
+                }
+                var dte = Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider.GetService(typeof(EnvDTE.DTE)) as EnvDTE.DTE;
+                if (dte == null || !dte.Commands.Item("Query.Execute").IsAvailable)
+                {
+                    Notifications.Show("Connect this query tab and wait for its current execution to finish.");
+                    return;
+                }
+                DismissCompletion();
+                view.VisualElement.Focus();
+                if (!view.HasAggregateFocus || snapshot != view.TextBuffer.CurrentSnapshot)
+                {
+                    Notifications.Show("Focus the SQL query editor and try again.");
+                    return;
+                }
+                view.Selection.Select(new SnapshotSpan(snapshot, statement.Start, statement.Length), false);
+                if (view.Selection.SelectedSpans.Count != 1 || view.Selection.SelectedSpans[0].GetText() != statement.Text)
+                {
+                    Notifications.Show("Could not select the statement. Nothing was executed.");
+                    return;
+                }
+                // Keep the exact submitted selection visible. The host uses this
+                // tab's connection; never execute through the metadata connection.
+                ShortcutRouter.RunNative(() => dte.ExecuteCommand("Query.Execute"));
+            }
+            catch (Exception ex)
+            {
+                Notifications.Show("Could not execute the statement: " + ex.Message);
+            }
+        }
         internal void Format()
         {
             try

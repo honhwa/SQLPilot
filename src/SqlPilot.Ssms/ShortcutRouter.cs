@@ -24,6 +24,16 @@ namespace SqlPilot.Ssms
             }
             catch (Exception ex) { Diagnostics.Write("Shell shortcut routing initialization failed: " + ex); }
         }
+        internal static void RunNative(Action action)
+        {
+            bool previous = executing;
+            executing = true;
+            try
+            {
+                action();
+            }
+            finally { executing = previous; }
+        }
         static void BeforeExecute(string guid, int id, object input, object output, ref bool cancelDefault)
         {
             if (executing)
