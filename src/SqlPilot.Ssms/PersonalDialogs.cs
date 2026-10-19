@@ -131,8 +131,9 @@ namespace SqlPilot.Ssms
             catch (Exception ex) { MessageBox.Show("Library could not be loaded: " + ex.Message, "SqlPilot Library"); return; }
             window.ShowDialog();
         }
-        internal static Window CreateLibraryWindow(SqlLibrary store, string initialSql = null, string initialTitle = null, Action<string> insert = null, Action<string> open = null)
+        internal static Window CreateLibraryWindow(SqlLibrary store, string initialSql = null, string initialTitle = null, Action<string> insert = null, Action<string> open = null, Action<string, string> saveShortcut = null)
         {
+            saveShortcut = saveShortcut ?? KeyboardShortcuts.SaveLibraryShortcut;
             var entries = store.Load();
             var grid = new Grid { Margin = new Thickness(0) };
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(280) });
@@ -153,6 +154,8 @@ namespace SqlPilot.Ssms
             var title = Field(right, "Title");
             var category = Field(right, "Category");
             var tags = Field(right, "Tags");
+            var shortcut = Field(right, "Open in new tab shortcut (for example Ctrl+Alt+1)");
+            shortcut.Name = "LibraryShortcut";
             var sql = Field(right, "SQL", true);
             sql.Name = "LibrarySql";
             var status = new TextBlock { Text = "↑ / ↓ Select query · Ctrl+Enter Insert into query\nStored locally. Open and Insert never execute SQL.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0) };
@@ -160,8 +163,8 @@ namespace SqlPilot.Ssms
             LibraryEntry selected = null;
             bool loading = false, dirty = false, draftMode = initialSql != null;
             Func<bool> discard = () => !dirty || MessageBox.Show("Discard unsaved library edits?", "SqlPilot Library", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
-            Action<LibraryEntry> populate = e => { loading = true; selected = e; title.Text = e?.Title ?? ""; category.Text = e?.Category ?? "General"; tags.Text = e?.Tags ?? ""; sql.Text = e?.Sql ?? ""; loading = false; dirty = false; };
-            foreach (var box in new[] { title, category, tags, sql })
+            Action<LibraryEntry> populate = e => { loading = true; selected = e; title.Text = e?.Title ?? ""; category.Text = e?.Category ?? "General"; tags.Text = e?.Tags ?? ""; shortcut.Text = e == null ? "" : KeyboardShortcuts.Gesture(KeyboardShortcuts.LibraryCommand(e.Id)); sql.Text = e?.Sql ?? ""; loading = false; dirty = false; };
+            foreach (var box in new[] { title, category, tags, shortcut, sql })
                 box.TextChanged += (_, __) => { if (!loading) dirty = true; };
             Action refresh = () =>
             {
@@ -184,10 +187,10 @@ namespace SqlPilot.Ssms
             var actions = new WrapPanel();
             right.Children.Add(actions);
             var window = Window("SqlPilot · SQL Library", grid);
-            window.Height = 780;
+            window.Height = 830;
             window.MinHeight = 700;
             Button(actions, "New", () => { if (discard()) { draftMode = true; populate(null); loading = true; list.SelectedItem = null; loading = false; title.Focus(); } });
-            Button(actions, "Save", () => { var entry = new LibraryEntry { Id = selected?.Id, Title = title.Text, Category = category.Text, Tags = tags.Text, Sql = sql.Text }; store.Save(entry); entries = store.Load(); selected = entries.First(e => e.Id == entry.Id); dirty = false; draftMode = false; refresh(); status.Text = "Saved to SQL Library."; });
+            Button(actions, "Save", () => { var entry = new LibraryEntry { Id = selected?.Id ?? Guid.NewGuid().ToString("N"), Title = title.Text, Category = category.Text, Tags = tags.Text, Sql = sql.Text }; KeyboardShortcuts.WithLibraryShortcut(entry.Id, shortcut.Text); store.Save(entry); saveShortcut(entry.Id, shortcut.Text); entries = store.Load(); selected = entries.First(e => e.Id == entry.Id); dirty = false; draftMode = false; refresh(); status.Text = "Saved to SQL Library."; });
             Button(actions, "Import .sql", () => { if (!discard()) return; var file = new OpenFileDialog { Filter = "SQL files (*.sql)|*.sql", Multiselect = false }; if (file.ShowDialog() == true) { draftMode = true; populate(null); loading = true; list.SelectedItem = null; loading = false; title.Text = Path.GetFileNameWithoutExtension(file.FileName); sql.Text = File.ReadAllText(file.FileName); dirty = true; } });
             Button(actions, "Export .sql", () => { var file = new SaveFileDialog { Filter = "SQL files (*.sql)|*.sql", DefaultExt = ".sql", FileName = "Query.sql" }; if (file.ShowDialog() == true) File.WriteAllText(file.FileName, sql.Text, new System.Text.UTF8Encoding(false)); });
             var insertButton = Button(actions, "Insert into query (Ctrl+Enter)", () =>

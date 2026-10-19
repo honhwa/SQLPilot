@@ -17,6 +17,10 @@ namespace SqlPilot.Ssms
         {
             get; set;
         }
+        public string Label
+        {
+            get; set;
+        }
         public string Gesture
         {
             get; set;
@@ -40,7 +44,7 @@ namespace SqlPilot.Ssms
                     foreach (var e in XElement.Load(path).Elements("Binding"))
                     {
                         string command = (string)e.Attribute("Command");
-                        if (values.ContainsKey(command))
+                        if (IsKnownCommand(command))
                         {
                             var gesture = (string)e.Attribute("Gesture") ?? "";
                             values[command] = gesture;
@@ -59,6 +63,22 @@ namespace SqlPilot.Ssms
             catch { values = new Dictionary<string, string>(Defaults); }
             return values;
         }
+        internal static string LibraryCommand(string id)
+        {
+            if (!Guid.TryParseExact(id, "N", out var value))
+                throw new ArgumentException("Invalid library entry.");
+            return "Library:" + value.ToString("N");
+        }
+        internal static bool IsLibraryCommand(string command) => command != null && command.StartsWith("Library:", StringComparison.Ordinal) && Guid.TryParseExact(command.Substring(8), "N", out _);
+        static bool IsKnownCommand(string command) => command != null && (Defaults.ContainsKey(command) || IsLibraryCommand(command));
+        internal static Dictionary<string, string> WithLibraryShortcut(string id, string gesture, IDictionary<string, string> source = null)
+        {
+            var proposed = new Dictionary<string, string>(source ?? current);
+            proposed[LibraryCommand(id)] = gesture?.Trim() ?? "";
+            Validate(proposed);
+            return proposed;
+        }
+        internal static void SaveLibraryShortcut(string id, string gesture) => Save(WithLibraryShortcut(id, gesture));
         internal static string Gesture(string command) => current.TryGetValue(command, out var g) ? g : "";
         static bool SameGesture(string first, string second)
         {
@@ -74,7 +94,7 @@ namespace SqlPilot.Ssms
             var seen = new HashSet<string>();
             foreach (var item in values)
             {
-                if (!Defaults.ContainsKey(item.Key))
+                if (!IsKnownCommand(item.Key))
                     throw new ArgumentException("Unknown command.");
                 if (string.IsNullOrWhiteSpace(item.Value))
                     continue;
@@ -112,24 +132,32 @@ namespace SqlPilot.Ssms
                 }
             return null;
         }
-        internal static void Save(IDictionary<string, string> values)
+        internal static void Save(IDictionary<string, string> values, string path = null, bool activate = true)
         {
+            path = path ?? PathName;
             Validate(values);
-            Directory.CreateDirectory(Path.GetDirectoryName(PathName));
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
             var root = new XElement("KeyboardShortcuts", values.Select(k => new XElement("Binding", new XAttribute("Command", k.Key), new XAttribute("Gesture", k.Value ?? ""))));
-            string temporary = PathName + ".tmp";
+            string temporary = path + ".tmp";
             root.Save(temporary);
-            if (File.Exists(PathName))
-                File.Replace(temporary, PathName, null);
+            if (File.Exists(path))
+                File.Replace(temporary, path, null);
             else
-                File.Move(temporary, PathName);
-            current = new Dictionary<string, string>(values);
+                File.Move(temporary, path);
+            if (activate)
+                current = new Dictionary<string, string>(values);
         }
         internal static void Show()
         {
-            var rows = current.Select(k => new ShortcutRow { Command = k.Key, Gesture = k.Value }).ToList();
+            var titles = new Dictionary<string, string>();
+            try
+            {
+                titles = new SqlPilot.Core.SqlLibrary(System.IO.Path.Combine(System.IO.Path.GetDirectoryName(PathName), "Library")).Load().ToDictionary(e => LibraryCommand(e.Id), e => "Library · " + e.Title);
+            }
+            catch (Exception ex) { Diagnostics.Write("Library shortcut labels: " + ex.GetType().Name); }
+            var rows = current.Select(k => new ShortcutRow { Command = k.Key, Label = titles.TryGetValue(k.Key, out var title) ? title : k.Key, Gesture = k.Value }).ToList();
             var grid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, ItemsSource = rows, HeadersVisibility = DataGridHeadersVisibility.Column, RowHeight = 34, GridLinesVisibility = DataGridGridLinesVisibility.None, Background = System.Windows.Media.Brushes.Transparent };
-            grid.Columns.Add(new DataGridTextColumn { Header = "Action", Binding = new System.Windows.Data.Binding("Command"), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Action", Binding = new System.Windows.Data.Binding("Label"), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             grid.Columns.Add(new DataGridTextColumn { Header = "Keyboard shortcut", Binding = new System.Windows.Data.Binding("Gesture") { UpdateSourceTrigger = System.Windows.Data.UpdateSourceTrigger.PropertyChanged }, Width = 220 });
             var panel = new DockPanel();
             var hint = new TextBlock { Text = "Edit a shortcut, for example Ctrl+Shift+F. Leave it blank to disable.\nTab / Enter / arrows remain reserved for completion. Tab snippets are edited separately.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 14) };
@@ -148,7 +176,7 @@ namespace SqlPilot.Ssms
             var window = SqlPilot.UI.Design.Window("Keyboard Shortcuts", panel, 780, 780, "Your preferred keys, saved for every SQL tab");
             window.Icon = Brand.Icon();
             snippets.Click += (_, __) => PersonalDialogs.ShowSnippets();
-            reset.Click += (_, __) => { rows = Defaults.Select(k => new ShortcutRow { Command = k.Key, Gesture = k.Value }).ToList(); grid.ItemsSource = rows; };
+            reset.Click += (_, __) => { rows = Defaults.Select(k => new ShortcutRow { Command = k.Key, Label = k.Key, Gesture = k.Value }).ToList(); grid.ItemsSource = rows; };
             save.Click += (_, __) => { try { grid.CommitEdit(DataGridEditingUnit.Cell, true); grid.CommitEdit(DataGridEditingUnit.Row, true); Save(rows.ToDictionary(k => k.Command, k => k.Gesture)); window.Close(); } catch (Exception ex) { MessageBox.Show(ex.Message, "SqlPilot · Keyboard shortcuts"); } };
             window.ShowDialog();
         }

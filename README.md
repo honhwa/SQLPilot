@@ -35,7 +35,9 @@ Setup detects local SSMS installations and builds an adapter against their edito
 - Editable Tab snippets, such as `ssf` → `SELECT * FROM`, and configurable keyboard shortcuts.
 - Local syntax errors, warnings and improvement suggestions with per-section underlines, explanations and safe fixes where available.
 - Formatting that preserves comments and optional conversion of typed `&&`, `||`, `==`, `!=` in SQL conditions.
-- SQL Library with categories, tags, search and import/export. The last inserted query appears first and is selected on opening; Up/Down selects a query and Ctrl+Enter inserts it. Query history, reference navigation and Object Explorer lookup are also available.
+- Hover a table or column for cached schema/type information, nullability, defaults and relation summaries.
+- Fully typed SQL keywords become uppercase on Space; toggle this separately in Settings.
+- SQL Library with categories, tags, search and import/export. The last inserted query appears first and is selected on opening; Up/Down selects a query and Ctrl+Enter inserts it. Each saved script can have a keyboard shortcut that opens an independent SQL tab without executing it; set it in SQL Library and click Save. Conflicts are rejected. Query history, reference navigation and Object Explorer lookup are also available.
 - Encrypted tab/session checkpoints and connection recovery for supported connection types.
 
 The toolbar uses one **SqlPilot** button with grouped actions. Completion, appearance, bracket insertion, aliases, diagnostics and session recovery are configurable in Settings.

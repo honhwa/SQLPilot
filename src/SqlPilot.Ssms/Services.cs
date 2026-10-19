@@ -129,7 +129,7 @@ CASE WHEN c.is_identity=0 AND c.is_computed=0 AND c.system_type_id<>189
     AND ISNULL(CONVERT(int, COLUMNPROPERTY(o.object_id,c.name,'IsHidden')),0)=0 THEN 1 ELSE 0 END,
 t.name, ts.name, t.is_user_defined, c.max_length, c.precision, c.scale, c.is_nullable, dc.definition,
 CASE WHEN c.default_object_id<>0 OR t.default_object_id<>0 THEN 1 ELSE 0 END,
-CASE WHEN t.is_assembly_type=1 THEN t.name ELSE COALESCE(bt.name,t.name) END
+CASE WHEN t.is_assembly_type=1 THEN t.name ELSE COALESCE(bt.name,t.name) END, c.is_identity, c.is_computed
 FROM sys.objects AS o
 INNER JOIN sys.schemas AS s ON s.schema_id=o.schema_id
 LEFT JOIN sys.columns AS c ON c.object_id=o.object_id
@@ -148,16 +148,20 @@ ORDER BY o.object_id, c.column_id;";
                             if (!reader.IsDBNull(4))
                             {
                                 obj.Columns.Add(reader.GetString(4));
+                                var detail = new InsertColumn
+                                {
+                                    Name = reader.GetString(4),
+                                    Type = Engine.ColumnType(reader.GetString(6), reader.GetString(7), reader.GetBoolean(8), reader.GetInt16(9), reader.GetByte(10), reader.GetByte(11)),
+                                    BaseType = reader.GetString(15),
+                                    Nullable = reader.GetBoolean(12),
+                                    Identity = reader.GetBoolean(16),
+                                    Computed = reader.GetBoolean(17),
+                                    DefaultExpression = reader.IsDBNull(13) ? null : reader.GetString(13),
+                                    HasDefault = reader.GetInt32(14) == 1
+                                };
+                                obj.ColumnDetails.Add(detail);
                                 if (reader.GetInt32(5) == 1 && obj.InsertColumns != null)
-                                    obj.InsertColumns.Add(new InsertColumn
-                                    {
-                                        Name = reader.GetString(4),
-                                        Type = Engine.ColumnType(reader.GetString(6), reader.GetString(7), reader.GetBoolean(8), reader.GetInt16(9), reader.GetByte(10), reader.GetByte(11)),
-                                        BaseType = reader.GetString(15),
-                                        Nullable = reader.GetBoolean(12),
-                                        DefaultExpression = reader.IsDBNull(13) ? null : reader.GetString(13),
-                                        HasDefault = reader.GetInt32(14) == 1
-                                    });
+                                    obj.InsertColumns.Add(detail);
                             }
                         }
                 }

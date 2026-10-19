@@ -22,6 +22,14 @@ namespace SqlPilot.Core
             get; set;
         }
         public bool Nullable { get; set; } = true;
+        public bool Identity
+        {
+            get; set;
+        }
+        public bool Computed
+        {
+            get; set;
+        }
         public bool HasDefault
         {
             get; set;

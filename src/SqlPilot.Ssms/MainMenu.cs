@@ -49,6 +49,15 @@ namespace SqlPilot.Ssms
                 return;
             }
             var dte = Microsoft.VisualStudio.Shell.ServiceProvider.GlobalProvider.GetService(typeof(DTE)) as DTE;
+            if (KeyboardShortcuts.IsLibraryCommand(command))
+            {
+                try
+                {
+                    LibraryTabs.Open(dte, command.Substring(8));
+                }
+                catch (Exception ex) { Notifications.Show("Could not open the library query: " + ex.Message); }
+                return;
+            }
             var active = EditorBootstrap.Attach() ?? Controller.Active;
             if (command == "Library")
             {

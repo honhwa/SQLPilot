@@ -29,6 +29,7 @@ namespace SqlPilot.Ssms
         readonly CompletionGuard guard;
         readonly CompletionState completionState = new CompletionState();
         readonly InlineDiagnostics inlineDiagnostics;
+        readonly MetadataHover metadataHover;
         readonly StarHint starHint;
         readonly IWpfTextView view; readonly ITextDocument document; readonly ICompletionBroker broker;
         readonly string tab = Guid.NewGuid().ToString("N");
@@ -55,6 +56,7 @@ namespace SqlPilot.Ssms
                 inlineDiagnostics = new InlineDiagnostics(view, (sql, issue) => Engine.DiagnosticFix(sql, issue, catalog, UserSettings.Current.UseBrackets), ApplyDiagnosticFix, ReviewDiagnostic, ConfigureDiagnostic);
             }
             catch (Exception ex) { Diagnostics.Write("Inline diagnostics initialization failed: " + ex); }
+            metadataHover = new MetadataHover(view, () => scanning ? Enumerable.Empty<DbObject>() : catalog);
             starHint = new StarHint(view, () => catalog, () => CompletionOwnership.Enabled && !completionState.Dismissed && parameterStops.Count == 0, () => { popup.IsOpen = false; completionTimer.Stop(); });
             CompletionOwnership.Changed += CompletionModeChanged;
             UserSettings.Changed += SettingsChanged;
@@ -239,6 +241,7 @@ namespace SqlPilot.Ssms
                 return;
             connection = next;
             catalog = new List<DbObject>();
+            metadataHover.Dismiss();
             starHint.Invalidate();
             popup.IsOpen = false;
             parameterStops.Clear();
@@ -294,28 +297,46 @@ namespace SqlPilot.Ssms
             if (!replacing)
                 foreach (var change in args.Changes)
                     completionState.Edit(change.NewText);
-            if (!replacing && UserSettings.Current.AutoConvert && args.Changes.Count == 1)
+            if (!replacing && (UserSettings.Current.AutoConvert || UserSettings.Current.UppercaseKeywords) && args.Changes.Count == 1)
             {
                 var change = args.Changes[0];
                 if (change.NewLength == 1 && change.OldLength == 0 && char.IsWhiteSpace(change.NewText[0]))
                 {
                     int expected = change.NewPosition + 1;
-                    var version = args.After.Version;
-                    view.VisualElement.Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    var text = args.After.GetText();
+                    var initial = UserSettings.Current.AutoConvert ? Engine.AutoConversion(text, expected) : null;
+                    if (initial == null && UserSettings.Current.UppercaseKeywords)
+                        initial = Engine.KeywordCaseOnSpace(text, expected);
+                    if (initial != null)
                     {
-                        if (view.IsClosed || view.TextBuffer.CurrentSnapshot.Version != version || view.Caret.Position.BufferPosition.Position != expected)
-                            return;
-                        var fix = Engine.AutoConversion(view.TextBuffer.CurrentSnapshot.GetText(), expected);
-                        if (fix == null)
-                            return;
-                        replacing = true;
-                        try
+                        var tracked = args.After.CreateTrackingSpan(initial.Offset, initial.Length, SpanTrackingMode.EdgeExclusive);
+                        string original = text.Substring(initial.Offset, initial.Length);
+                        view.VisualElement.Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                         {
-                            view.TextBuffer.Replace(new Span(fix.Offset, fix.Length), fix.Replacement);
-                            view.Caret.MoveTo(new SnapshotPoint(view.TextBuffer.CurrentSnapshot, expected + fix.Replacement.Length - fix.Length));
-                        }
-                        finally { replacing = false; }
-                    }));
+                            if (view.IsClosed || !view.Selection.IsEmpty)
+                                return;
+                            var snapshot = view.TextBuffer.CurrentSnapshot;
+                            var span = tracked.GetSpan(snapshot);
+                            if (span.GetText() != original || span.End.Position >= snapshot.Length)
+                                return;
+                            // Track the completed token, not the old caret/version. Fast typing
+                            // after Space must not silently cancel keyword normalization.
+                            var currentText = snapshot.GetText();
+                            var fix = UserSettings.Current.AutoConvert ? Engine.AutoConversion(currentText, span.End.Position + 1) : null;
+                            if (fix == null && UserSettings.Current.UppercaseKeywords)
+                                fix = Engine.KeywordCaseOnSpace(currentText, span.End.Position + 1);
+                            if (fix == null || fix.Offset != span.Start.Position || fix.Length != span.Length)
+                                return;
+                            var caret = snapshot.CreateTrackingPoint(view.Caret.Position.BufferPosition.Position, PointTrackingMode.Positive);
+                            replacing = true;
+                            try
+                            {
+                                view.TextBuffer.Replace(span.Span, fix.Replacement);
+                                view.Caret.MoveTo(caret.GetPoint(view.TextBuffer.CurrentSnapshot));
+                            }
+                            finally { replacing = false; }
+                        }));
+                    }
                 }
             }
             guard.Dismiss();
@@ -740,6 +761,7 @@ namespace SqlPilot.Ssms
             UserSettings.Changed -= SettingsChanged;
             starHint.Dispose();
             inlineDiagnostics?.Dispose();
+            metadataHover.Dispose();
             guard.Dispose();
             if (Active == this)
                 Active = null;

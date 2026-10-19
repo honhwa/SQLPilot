@@ -14,7 +14,7 @@ namespace SqlPilot.Ssms
     {
         internal static UserSettings Current = Load();
         internal static event EventHandler Changed;
-        internal bool Enabled = true, FuzzyMatching = true, TableAliases = true, QualifyColumns = true, ExclusiveCompletion = true, AutoConvert = true, RestoreSession = true, InlineDiagnostics = true, UseBrackets = true;
+        internal bool Enabled = true, FuzzyMatching = true, TableAliases = true, QualifyColumns = true, ExclusiveCompletion = true, AutoConvert = true, UppercaseKeywords = true, RestoreSession = true, InlineDiagnostics = true, UseBrackets = true;
         internal string Theme = "Purple";
         internal int FontSize = 12, MaxResults = 200;
         static string PathName => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SqlPilot", "settings.xml");
@@ -30,6 +30,7 @@ namespace SqlPilot.Ssms
                 s.Enabled = (bool?)root.Element("Enabled") ?? true;
                 s.InlineDiagnostics = (bool?)root.Element("InlineDiagnostics") ?? true;
                 s.UseBrackets = (bool?)root.Element("UseBrackets") ?? true;
+                s.UppercaseKeywords = (bool?)root.Element("UppercaseKeywords") ?? true;
                 s.AutoConvert = (bool?)root.Element("AutoConvert") ?? true;
                 s.RestoreSession = (bool?)root.Element("RestoreSession") ?? true;
                 s.FuzzyMatching = (bool?)root.Element("FuzzyMatching") ?? true;
@@ -55,7 +56,7 @@ namespace SqlPilot.Ssms
             }
             var s = Current;
             Directory.CreateDirectory(Path.GetDirectoryName(PathName));
-            var root = new XElement("SqlPilotSettings", new XElement("Enabled", s.Enabled), new XElement("UseBrackets", s.UseBrackets), new XElement("InlineDiagnostics", s.InlineDiagnostics), new XElement("AutoConvert", s.AutoConvert), new XElement("RestoreSession", s.RestoreSession), new XElement("FuzzyMatching", s.FuzzyMatching),
+            var root = new XElement("SqlPilotSettings", new XElement("Enabled", s.Enabled), new XElement("UseBrackets", s.UseBrackets), new XElement("InlineDiagnostics", s.InlineDiagnostics), new XElement("AutoConvert", s.AutoConvert), new XElement("UppercaseKeywords", s.UppercaseKeywords), new XElement("RestoreSession", s.RestoreSession), new XElement("FuzzyMatching", s.FuzzyMatching),
                 new XElement("TableAliases", s.TableAliases), new XElement("QualifyColumns", s.QualifyColumns),
                 new XElement("ExclusiveCompletion", s.ExclusiveCompletion), new XElement("Theme", s.Theme),
                 new XElement("FontSize", s.FontSize), new XElement("MaxResults", s.MaxResults));
@@ -75,6 +76,7 @@ namespace SqlPilot.Ssms
             Func<string, bool, CheckBox> check = (text, value) => { var box = new CheckBox { Content = text, IsChecked = value, Margin = new Thickness(0, 6, 0, 6) }; panel.Children.Add(box); return box; };
             var enabled = check("Enable SqlPilot completion", s.Enabled);
             var diagnostics = check("Show inline errors, warnings and improvement suggestions", s.InlineDiagnostics);
+            var keywordCase = check("Uppercase completed SQL keywords on Space", s.UppercaseKeywords);
             var convert = check("Auto Convert typed && / || / == / != in SQL conditions", s.AutoConvert);
             var session = check("Remember open SQL tabs and restore their connections", s.RestoreSession);
             var exclusive = check("Suppress other completion providers while SqlPilot is enabled", s.ExclusiveCompletion);
@@ -113,6 +115,7 @@ namespace SqlPilot.Ssms
                 s.InlineDiagnostics = diagnostics.IsChecked == true;
                 s.Enabled = enabled.IsChecked == true;
                 s.AutoConvert = convert.IsChecked == true;
+                s.UppercaseKeywords = keywordCase.IsChecked == true;
                 s.RestoreSession = session.IsChecked == true;
                 s.ExclusiveCompletion = exclusive.IsChecked == true;
                 s.FuzzyMatching = fuzzy.IsChecked == true;

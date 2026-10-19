@@ -2,6 +2,17 @@
 
 Each published change updates the source repository and has a matching GitHub Release.
 
+## [0.13.11](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.11) — 2026-10-19
+
+- Assign a keyboard shortcut to each saved library script; open an independent SQL tab with that shortcut, without executing SQL or changing the saved script.
+- Persist library bindings by stable query ID, validate conflicts with other commands, and show query titles in Keyboard shortcuts.
+- Remove unmodified temporary tab copies when their tabs close; retain explicitly saved copies.
+- Uppercase a fully typed SQL keyword when Space is pressed, even without accepting completion; add a separate Settings switch and preserve comments, strings, quoted names, variables and partial identifiers.
+- Track pending Space transformations across subsequent edits so fast typing does not cancel normalization; preserve the current caret.
+- Add cached table/column hover cards with schema, aliases, types, nullability, defaults, identity/computed flags and table foreign-key summaries.
+- Retain metadata for all columns, including generated columns, without adding per-hover database queries; hide stale cards during connection changes and editor updates.
+- Add keyword casing, metadata resolution, library shortcut persistence/conflict and actual library dialog-control checks.
+
 ## [0.13.10](https://github.com/tyeety/SQLPilot/releases/tag/v0.13.10) — 2026-10-18
 
 - Add Execute statement at cursor to SQL editing with configurable Ctrl+Enter; preserve normal F5 behavior.

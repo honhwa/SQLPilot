@@ -53,6 +53,18 @@ namespace SqlPilot.Core
             }
             return null;
         }
+        public static Issue KeywordCaseOnSpace(string sql, int caret)
+        {
+            if (sql == null || caret < 2 || caret > sql.Length || sql[caret - 1] != ' ' || char.IsWhiteSpace(sql[caret - 2]))
+                return null;
+            var token = ContextTokens(sql.Substring(0, caret - 1)).LastOrDefault();
+            if (token == null || token.Offset + token.Text.Length != caret - 1 ||
+                token.TokenType == TSqlTokenType.Identifier || token.TokenType == TSqlTokenType.QuotedIdentifier ||
+                !token.Text.All(c => char.IsLetter(c) || c == '_'))
+                return null;
+            string upper = token.Text.ToUpperInvariant();
+            return token.Text == upper ? null : new Issue { Code = "KEYWORD-CASE", Offset = token.Offset, Length = token.Text.Length, Replacement = upper };
+        }
         static string PreserveComments(string original, string formatted)
         {
             var parser = new TSql180Parser(true);

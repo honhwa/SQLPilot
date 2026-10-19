@@ -67,6 +67,28 @@ class Program
         check(KeyboardShortcuts.Load(keyboardFixture)["ExecuteStatement"] == "Ctrl+Shift+E", "Explicit execution shortcut survives loading");
         File.WriteAllText(keyboardFixture, "<KeyboardShortcuts><Binding Command='ExecuteStatement' Gesture=''/></KeyboardShortcuts>");
         check(KeyboardShortcuts.Load(keyboardFixture)["ExecuteStatement"] == "", "Execution shortcut can be disabled persistently");
+        string libraryId = Guid.NewGuid().ToString("N");
+        string libraryId2 = Guid.NewGuid().ToString("N");
+        var libraryKeys = KeyboardShortcuts.WithLibraryShortcut(libraryId, "Ctrl+Alt+1", new Dictionary<string, string>(KeyboardShortcuts.Defaults));
+        check(libraryKeys[KeyboardShortcuts.LibraryCommand(libraryId)] == "Ctrl+Alt+1", "Library query receives an independent validated key binding");
+        KeyboardShortcuts.Save(libraryKeys, keyboardFixture, false);
+        check(KeyboardShortcuts.Load(keyboardFixture)[KeyboardShortcuts.LibraryCommand(libraryId)] == "Ctrl+Alt+1", "Library key bindings persist and reload without changing real user settings");
+        bool duplicateLibrary = false;
+        try
+        {
+            KeyboardShortcuts.WithLibraryShortcut(libraryId2, "Control+Alt+D1", libraryKeys);
+        }
+        catch (ArgumentException) { duplicateLibrary = true; }
+        check(duplicateLibrary, "Duplicate normalized library shortcuts are rejected");
+        bool reservedLibrary = false;
+        try
+        {
+            KeyboardShortcuts.WithLibraryShortcut(libraryId, "Ctrl+Enter", libraryKeys);
+        }
+        catch (ArgumentException) { reservedLibrary = true; }
+        check(reservedLibrary, "Library shortcut cannot override current-statement execution");
+        check(KeyboardShortcuts.WithLibraryShortcut(libraryId, "", libraryKeys)[KeyboardShortcuts.LibraryCommand(libraryId)] == "", "Library shortcut can be removed without deleting its query");
+        check(!KeyboardShortcuts.IsLibraryCommand("Library:../../file") && KeyboardShortcuts.IsLibraryCommand(KeyboardShortcuts.LibraryCommand(libraryId)), "Library shortcut accepts only stable query IDs");
         string diagnosticLog = Path.Combine(root, "extension.log");
         for (int i = 0; i < 40; i++)
             SqlPilot.BoundedLog.Append(diagnosticLog, new string('a', 12), 64);

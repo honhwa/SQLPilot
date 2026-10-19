@@ -531,4 +531,41 @@ foreach (string text in new[] { "", "-- SELECT 2;", "/* SELECT 2; */", "SELECT 1
 Check(Engine.StatementAtCaret("SELECT 1;SELECT 2;", 9, out _)?.Text == "SELECT 2;", "Adjacent statements use the one starting at the cursor");
 Check(Engine.StatementAtCaret("SELECT 1;", 9, out _)?.Text == "SELECT 1;", "Trailing statement edge remains executable");
 Check(Engine.StatementAtCaret("SELECT 1;", -1, out _) == null && Engine.StatementAtCaret("SELECT 1;", 50, out _) == null, "Execution rejects out-of-range caret");
+
+
+foreach (string word in new[] { "select", "from", "where", "insert", "into", "update", "delete", "join", "on", "and", "order", "by", "group", "distinct", "SeLeCt", "null", "case", "when", "then", "end" })
+{
+    string text = word + " ";
+    var fix = Engine.KeywordCaseOnSpace(text, text.Length);
+    Check(fix != null && fix.Offset == 0 && fix.Length == word.Length && fix.Replacement == word.ToUpperInvariant(), "Space uppercases complete SQL keyword: " + word);
+}
+foreach (string text in new[] { "-- select ", "/* from ", "SELECT N'select ", "SELECT [select ", "SELECT [where] ", "SELECT \"where\" ", "SELECT @from ", "SELECT #from ", "SELECT myselect ", "SELECT sel ", "SELECT ", "select  ", "select\t" })
+    Check(Engine.KeywordCaseOnSpace(text, text.Length) == null, "Keyword casing preserves comment/literal/identifier/partial text: " + text);
+var hoveredTable = new DbObject { Schema = "sales", Name = "Orders", Kind = "USER_TABLE", Columns = new List<string> { "Id", "Total" }, ColumnDetails = new List<InsertColumn> { new InsertColumn { Name = "Id", Type = "int", Nullable = false, Identity = true }, new InsertColumn { Name = "Total", Type = "decimal(18,2)", Nullable = false, HasDefault = true, DefaultExpression = "((0))" } } };
+var hoverCatalog = new[] { hoveredTable };
+MetadataDescription Describe(string sql, string word) => Engine.DescribeAt(sql, sql.IndexOf(word, StringComparison.Ordinal), hoverCatalog);
+Check(Describe("SELECT * FROM sales.Orders o", "Orders").Title == "[sales].[Orders]", "Hover resolves schema-qualified table");
+Check(Describe("SELECT * FROM sales.Orders o", "sales").Body.Contains("IDENTITY"), "Table hover includes generated columns and identity metadata");
+Check(Describe("SELECT o.Total FROM sales.Orders o", "Total").Body.Contains("decimal(18,2) NOT NULL · DEFAULT ((0))"), "Column hover resolves alias and shows type/nullability/default");
+Check(Describe("SELECT Total FROM sales.Orders", "Total").Title == "[sales].[Orders].[Total]", "Unqualified column hover binds only current source");
+Check(Describe("SELECT [o].[Total] FROM sales.Orders [o]", "Total").Title.EndsWith("[Total]"), "Hover supports bracketed identifiers");
+Check(Describe("SELECT x.Total FROM sales.Orders o", "Total") == null, "Unknown qualifier does not guess a column owner");
+Check(Describe("-- Total\nSELECT 1", "Total") == null && Describe("SELECT N'Total'", "Total") == null, "Metadata hover ignores comments and literals");
+Check(Describe("SELECT 1; SELECT Total FROM sales.Orders", "Total") != null, "Hover scopes a later statement");
+var otherHover = new DbObject { Schema = "dbo", Name = "Other", Kind = "USER_TABLE", Columns = new List<string> { "Total" } };
+string ambiguousHover = "SELECT Total FROM sales.Orders o JOIN dbo.Other b ON o.Total=b.Total";
+Check(Engine.DescribeAt(ambiguousHover, 7, new[] { hoveredTable, otherHover }) == null, "Ambiguous unqualified hover is suppressed");
+string missingType = "SELECT b.Total FROM dbo.Other b";
+Check(Engine.DescribeAt(missingType, 9, new[] { otherHover }).Body.Contains("unavailable"), "Missing type metadata is explicit rather than guessed");
+Check(Engine.DescribeAt("SELECT 1", -1, hoverCatalog) == null && Engine.DescribeAt("SELECT 1", 90, hoverCatalog) == null, "Hover rejects out-of-range positions");
+string aliasHover = "SELECT o FROM sales.Orders o";
+Check(Engine.DescribeAt(aliasHover, 7, hoverCatalog)?.Title == "[sales].[Orders]", "Hover on table alias shows its table metadata");
+Check(Describe("SELECT * FROM otherdb.sales.Orders", "Orders") == null, "Cross-database table hover never substitutes current-database metadata");
+Check(Engine.KeywordCaseOnSpace("select customer", 7)?.Replacement == "SELECT", "Pending Space casing remains valid after the next word is typed");
+Check(Engine.KeywordCaseOnSpace("-- select customer", 10) == null, "Pending casing is rejected if surrounding edits move the token into a comment");
+var oldDetails = hoveredTable.ColumnDetails;
+hoveredTable.ColumnDetails = new List<InsertColumn> { new InsertColumn { Name = "Total", Type = "int", HasDefault = true, DefaultExpression = new string('x', 10000), Computed = true } };
+var boundedHover = Describe("SELECT Total FROM sales.Orders", "Total");
+Check(boundedHover.Body.Length < 500 && boundedHover.Body.Contains("COMPUTED"), "Hover bounds long default expressions and shows computed metadata");
+hoveredTable.ColumnDetails = oldDetails;
 Console.WriteLine($"{checks} checks passed.");

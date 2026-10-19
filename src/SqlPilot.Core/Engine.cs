@@ -45,6 +45,7 @@ namespace SqlPilot.Core
             get; set;
         }
         public List<string> Columns { get; set; } = new List<string>();
+        public List<InsertColumn> ColumnDetails { get; set; } = new List<InsertColumn>();
         // Null means writable-column metadata is unavailable; never guess INSERT columns.
         public List<InsertColumn> InsertColumns
         {
